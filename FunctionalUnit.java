@@ -9,21 +9,66 @@ public class FunctionalUnit {
 	private List<Thing> inputNodes, // input Objects
 						outputNodes; // output Objects
 	private Thing motionNode; // Motion observed in the FU					
+	// This will be a pair of lists maintained to say whether object was seen moving/not moving
+	private List<Integer> inDescriptor, outDescriptor;  
+	
 	
 	public FunctionalUnit() {
 		inputNodes = new ArrayList<Thing>();
 		outputNodes = new ArrayList<Thing>();
 		motionNode = new Thing();
+		inDescriptor = new ArrayList<Integer>();
+		outDescriptor = new ArrayList<Integer>();
 	}
 	
-	public void addObjectNode(Thing O, nodeType N) {
+	public void addObjectNode(Thing O, nodeType N, int D) {
 		if (N == nodeType.Input){
-			inputNodes.add(O); 
+			inputNodes.add(O);
+			inDescriptor.add(D);
 		} else {
 			outputNodes.add(O);
+			outDescriptor.add(D);
 		}
 	}
 	
+	public boolean equalsWithIngredients(FunctionalUnit U){
+		int results = 0; // this number must add up to three (3) which suggests that all parts match!
+		int count = 0; // counter used to determine number of hits (true matches)
+		// checking if the input nodes are all the same!
+		for(Thing T : this.inputNodes){
+			for (Thing TU : U.inputNodes){
+				if (((Object)T).equalsWithIngredients((Object)TU)){
+					count++;
+				}
+			}
+		}
+		// if the counter matches up to the number of inputs,
+		//	then that means we have the same set of inputs.
+		if (count == this.getNumberOfInputs()){
+			results++;
+		} 
+		
+		// checking if the Motion is the same
+		if (((Motion)this.motionNode).equals((Motion)U.motionNode)){
+			results++;
+		} 
+		
+		// checking if the output nodes are all the same!
+		count = 0;
+		for(Thing T : this.outputNodes){
+			for (Thing TU : U.outputNodes){
+				if (((Object)T).equalsWithIngredients((Object)TU)){
+					count++;
+				}
+			}
+		}
+		if (count == this.getNumberOfOutputs()){
+			results++;
+		} 
+		
+		// simply return true or false depending on the value of results
+		return (results == 3);
+	}
 	public boolean equals(FunctionalUnit U){
 		int results = 0; // this number must add up to three (3) which suggests that all parts match!
 		int count = 0; // counter used to determine number of hits (true matches)
@@ -55,7 +100,7 @@ public class FunctionalUnit {
 				}
 			}
 		}
-		if (count == this.getNumberOfInputs()){
+		if (count == this.getNumberOfOutputs()){
 			results++;
 		} 
 		
@@ -71,6 +116,13 @@ public class FunctionalUnit {
 		return inputNodes;
 	}
 	
+	public List<Integer> getInputDescriptor(){
+		return inDescriptor;
+	}
+	
+	public List<Integer> getOutputDescriptor(){
+		return outDescriptor;
+	}
 	public List<Thing> getOutputList(){
 		return outputNodes;
 	}
@@ -97,22 +149,45 @@ public class FunctionalUnit {
 	
 	public void printFunctionalUnit(){
 		// print all input Object nodes
+		int count = 0;
 		for (Thing T: inputNodes){
 			((Object)T).printObject();
+			System.out.println("\t" + inDescriptor.get(count++));
 		}
 		// print the Motion node
 		((Motion)motionNode).printMotion();
 		// print all output Object nodes
+		count = 0;
 		for (Thing T: outputNodes){
 			((Object)T).printObject();
+			System.out.println("\t" + outDescriptor.get(count++));
 		}
 	}
 	
+	public void printFunctionalUnitNoIngredients(){
+		// print all input Object nodes
+		int count = 0;
+		for (Thing T: inputNodes){
+			((Object)T).printObjectNoIngredients();
+			System.out.println("\t" + inDescriptor.get(count++));
+		}
+		// print the Motion node
+		((Motion)motionNode).printMotion();
+		// print all output Object nodes
+		count = 0;
+		for (Thing T: outputNodes){
+			((Object)T).printObjectNoIngredients();
+			System.out.println("\t" + outDescriptor.get(count++));
+		}
+	}
+
+	
 	public String getInputsForFile(){
-		String cat = "";
+		String cat = ""; 
+		int count = 0;
 		for (Thing T : inputNodes){
 			// just keep adding all Strings which describe all Objects and then return
-			cat = cat + (((Object)T).getObject()) + "\n"; 
+			cat = cat + (((Object)T).getObject()) + "\t" + inDescriptor.get(count++) + "\n"; 
 		}
 		return cat;
 	}
@@ -123,9 +198,10 @@ public class FunctionalUnit {
 	
 	public String getOutputsForFile(){
 		String cat = "";
+		int count = 0;
 		for (Thing T : outputNodes){
 			// just keep adding all Strings which describe all Objects and then return
-			cat = cat + (((Object)T).getObject()) + "\n";
+			cat = cat + (((Object)T).getObject()) + "\t" + outDescriptor.get(count++) + "\n"; 
 		}
 		return cat;
 	}

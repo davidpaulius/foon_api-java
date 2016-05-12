@@ -109,117 +109,16 @@ public class Thing {
     		System.out.println("O" + this.getType() + "\t" + label);
     	}
     }
-    
-    static String[] objects = { 
-    	"bread",  			// 0
-    	"cutting_board", 	// 1
-    	"bread_knife", 		// 2
-    	"bowl", 			// 3
-    	"garlic", 			// 4
-    	"butter", 			// 5
-    	"parsley", 			// 6
-    	"fork", 			// 7	
-    	"garlic_presser", 	// 8
-    	"salt", 			// 9
-    	"salt_grinder", 	// 10
-    	"butter_knife",     // 11
-    	"baking_pan/tray",  // 12
-    	"plate",			// 13
-    	"garlic_salt", 		// 14
-    	"oven",  			// 15
-    	"spoon",  			// 16
-    	"aluminum_foil", 	// 17
-    	"pepper_shaker", 	// 18
-    	"eggs", 			// 19
-    	"cheese", 			// 20
-    	"cup", 				// 21
-    	"teacup", 			// 22
-    	"tea_bag", 			// 23
-    	"kettle", 			// 24
-    	"stove",  			// 25
-    	"saucepan",  		// 26
-    	"paper_filter",  	// 27
-    	"milk",  			// 28
-    	"sugar",  			// 29
-    	"jar", 				// 30
-    	"teapot", 			// 31
-    	"water_faucet",  	// 32
-    	"water_filter" 		// 33
-    };
-
-    static String[][] states = {
-    	new String[]{"whole", "half", "buttered", "baked"},
-    	new String[]{""},
-    	new String[]{""},
-    	new String[]{"empty", "garlic", "butter", "parsley", "butter+garlic", "butter+garlic+parsley", "butter+garlic+parsley+salt", "mixed_butter"},
-    	new String[]{"complete_clove", "chopped"},
-    	new String[]{"80g_room_temperature", "mixed"},
-    	new String[]{"finely chopped"},
-    	new String[]{"clean", "dirty"},
-    	new String[]{"clean", "open", "closed", "garlic", "empty"},
-    	new String[]{""},
-    	new String[]{""},
-    	new String[]{"clean", "unclean"},
-    	new String[]{""},
-    	new String[]{""},
-    	new String[]{""}, 
-    	new String[]{"on", "off"}, 
-    	new String[]{"clean", "dirty"}, 
-    	new String[]{"flat", "folded", "unfolded"},
-    	new String[]{""},
-    	new String[]{"whole", "unshelled", "beaten"},
-    	new String[]{"whole", "shredded", "melted"},
-    	new String[]{"empty", "contains"},
-    	new String[]{"empty", "sugar", "milk", "sugar+milk", "tea"},
-    	new String[]{""},
-    	new String[]{"empty", "room_temp_water", "hot_water"},
-    	new String[]{"on", "off"},
-    	new String[]{"water", "water+tea_leaves", "oil"},
-    	new String[]{"clean", "with_leaves"},
-    	new String[]{""},
-    	new String[]{""},
-    	new String[]{"open+teabag", "closed+teabag"},
-    	new String[]{"empty+closed", "empty+open", "open+teabag", "closed+teabag", "open+teabag+water", "closed+teabag+water", "tea"},
-    	new String[]{"on", "off"},
-    	new String[]{""} 
-    };
-
-    static String[] motions = { 
-    	"pick+place",	//1 1
-    	"cut",			//2	1
-    	"close tool",	//3  rotate garlic presser ends to 0 degrees 
-    	"hold",			//4	1
-    	"brush off",	//5 don't need it for simulation
-    	"pour",			//6 tilt object 
-    	"mix",			//7 mix ingredients in bowl
-    	"spread",		//8	1
-    	"scrape",		//9 scrape off garlic from the garlic presser
-    	"grind",		//10 
-    	"scoop",		//11 move knife with butter to the bread
-    	"bake",			//12
-    	"cool/sit",		//13
-    	"wrap",			//14
-    	"unwrap",		//15
-    	"switch/turn_on", //16
-    	"dip*",			//17
-    	"wait",			//18
-    	"open_tool/object", //19
-    	"boil",			//20 
-    };
-
-    static String[] description = { 
-    	"<in motion>", 
-    	"<not in motion>",
-    	"<assumed>" 
-    };
-
-
 }
 
 class Object extends Thing {
     // Each object has a type (from Thing property), a state, and a flag indicating if it is in motion.
     private int objState;
     private String stateLabel;
+    // Objects can also be containers of other objects, so a list is maintained for each object 
+    //	which can point to other objects.
+    private List<Integer> contained;
+    private int numIngredients;
 
     // constructor method for an Object object (lol)
     public Object(int n, int S, String M, String L){
@@ -227,6 +126,8 @@ class Object extends Thing {
     	objState = S;
         setLabel(M);
         setStateLabel(L);
+        contained = new ArrayList<Integer>();
+        numIngredients = 0;
     }
     
     public Object(int n, int S){
@@ -234,8 +135,27 @@ class Object extends Thing {
     	objState = S;
     }
     
+    public Object(){};
+    
     public boolean equals(Object O){
     	return (O.getObjectType() == this.getObjectType() && O.getObjectState() == this.getObjectState()); 
+    }
+    
+    public boolean equalsWithIngredients(Object O){
+    	return equals(O) && isSameIngredients(O);
+    }
+    
+    public boolean isSameIngredients(Object O){
+    	int count = 0;
+    	for (int I : O.contained){
+    		if (this.contained.contains(I)){
+    			count++;
+    		}
+    	}
+    	if (count == O.numIngredients && O.getIngredientsList().size() == this.getIngredientsList().size()){
+    		return true;
+    	}
+    	return false;
     }
 
     public int getObjectType(){
@@ -245,21 +165,42 @@ class Object extends Thing {
     public String getStateLabel(){
     	return stateLabel;
     }
-
     public int getObjectState(){
         return objState;
     }
 
     public void printObject(){
-		System.out.println("O" + this.getType() + "\t" + this.getLabel() + "\nS" + this.getObjectState() + "\t" + this.getStateLabel());
+    	// -- print the object's identifier as well as state number in format: 
+    	//			O##		<name of object>
+    	//			S##		<name of state>	{<contained objects (if any)}
+		System.out.print("O" + this.getType() + "\t" + this.getLabel() + "\nS" + this.getObjectState() + "\t" + this.getStateLabel());
+		System.out.print("\t" + this.getIngredients());
+		System.out.println();
 	}
-    
+
+    public void printObjectNoIngredients(){
+    	// -- print the object's identifier as well as state number in format: 
+    	//			O##		<name of object>
+    	//			S##		<name of state>	{<contained objects (if any)}
+		System.out.print("O" + this.getType() + "\t" + this.getLabel() + "\nS" + this.getObjectState() + "\t" + this.getStateLabel());
+		System.out.println();
+	}
+
     public String getObject(){
-    	return ("O" + this.getType() + "\t"+this.getLabel()+ "\nS" + this.getObjectState() + "\t" + this.getStateLabel());
+    	return ("O" + this.getType() + "\t"+this.getLabel()+ "\nS" + this.getObjectState() + "\t" + this.getStateLabel() + "\t" + this.getIngredients());
     }
     
     public void setObjectType(int T){
     	setType(T);
+    }
+    
+    public List<Integer> getIngredientsList(){
+    	return contained;
+    }
+    
+    public void setIngredientsList(List<Integer> L){
+    	contained = L;
+    	numIngredients = contained.size();
     }
     
     public void setObjectState(int S){
@@ -270,30 +211,22 @@ class Object extends Thing {
     	stateLabel = S;
     }
     
-    public int existsFU(){
-    	// a functional unit begins with an object and ends with objects;
-    	// 	therefore, we need to check if a motion exists and if the objects attached are the same.
-    	for (int i = this.countNeighbours() - 1; i >= 0 ; i--){
-    		for (int j = 0; j < this.countNeighbours() && i != j; j++){
-    			if (((Motion)this.getNeigbourList().get(i)).equals(((Motion)this.getNeigbourList().get(j)))){
-    				// there is a motion of the same type
-    				if (((Motion)this.getNeigbourList().get(i)).countNeighbours() == ((Motion)this.getNeigbourList().get(j)).countNeighbours()){
-    					// they have the same number of neighbours
-    					int count = 0, total = ((Motion)this.getNeigbourList().get(j)).countNeighbours();
-    					for (int x = 0; x < total; x++){
-    						if (((Motion)this.getNeigbourList().get(i)).getNeigbourList().contains(((Motion)this.getNeigbourList().get(j)).getNeigbourList().get(x))){
-    							count++;
-    						}
-    					}
-    					if (count == total){
-    						// if all objects have been found connected to that motion then we have that FU already!
-    						return i;
-    					}
-    				}
-    			}
-    		}
-    	}
-    	return -1;
+    public void setIngredient(int O){
+    	contained.add(O);
+    	numIngredients++;
+    }
+    
+    public String getIngredients(){
+    	String result = "";
+    	result += "{";
+    	for (int count = 0; count < numIngredients; count++){
+			result += "O" + contained.get(count);
+			if (count < numIngredients - 1){
+				result += ",";
+			}
+		}    	
+    	result += "}";
+    	return result;
     }
     
 }
@@ -327,17 +260,11 @@ class Motion extends Thing {
     	return M.getType() == this.getType();
     }
     
-    // Prints the motion name associated with the Motion object.
-    public void printMotionWithDescription()
-    {
-        System.out.println("[" + motions[getType() - 1] + "]");
-    }
-    
     public void setMotionType(int T){
     	setType(T);
     }
     
     public Motion(){
-    	
+    	// empty constructor just for the option of creating empty Motion.
     };
 }
