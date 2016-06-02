@@ -602,7 +602,7 @@ public class Main {
 		System.out.println("	-> " + motions + " motion nodes in FOON presently!" );
 		System.out.println("Most frequent motion found in FOON was M_" + maxIndex + ", with frequency of " + (double)motionFrequency[maxIndex]/motions * 1.0);
 
-		String fileName = filePath.substring(0, filePath.length() - 4) + "_motions.txt";
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_motion_frequency.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 		for (int x = 0; x < motionFrequency.length; x++) {
@@ -613,8 +613,8 @@ public class Main {
 	}
 
 	private static void outputGraphDegree(String FP) throws Exception{
-		// Preparing for output
-		String fileName = FP.substring(0, FP.length() - 4) + "_degree.txt";
+		// -- Considering objects but not looking at ingredients!
+		String fileName = FP.substring(0, FP.length() - 4) + "_node_degrees_abstract.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 
@@ -630,11 +630,76 @@ public class Main {
 		output.close();
 
 		// saving the connections of each object to its neighbouring objects
-		fileName = FP.substring(0, FP.length() - 4) + "_edges.txt";
+		fileName = FP.substring(0, FP.length() - 4) + "_edges_abstract.txt";
 		outputFile = new File(fileName);
 		output = new BufferedWriter(new FileWriter(outputFile));
 		entireUnit = "";
 		for (Thing FU : oneModeObjectAbstract) {
+			entireUnit = "O" + FU.getType() + "S" + ((Object)FU).getObjectState();
+			for (Thing N : FU.getNeigbourList()) {
+				entireUnit += "\tO" + N.getType() + "S" + ((Object)N).getObjectState(); 
+			}
+			entireUnit += "\n";
+			output.write(entireUnit);
+			entireUnit = "";
+		}
+		output.close();
+		
+		// -- Outputting results while considering NO STATES!
+		fileName = FP.substring(0, FP.length() - 4) + "_node_degrees_nil.txt";
+		outputFile = new File(fileName);
+		output = new BufferedWriter(new FileWriter(outputFile));
+
+		// Save the entire network to the  file
+		System.out.println("Saving node degrees to file..");
+		entireUnit = "";
+		for (Thing FU : oneModeObject) {
+			entireUnit = (((Object)FU).getObject()).replace("\n", ", ") + " : " + FU.countNeighbours() + " degrees\n";
+			output.write(entireUnit);
+			entireUnit = "";
+		}
+		System.out.println("File saved at "+fileName);	
+		output.close();
+
+		// saving the connections of each object to its neighbouring objects
+		fileName = FP.substring(0, FP.length() - 4) + "_edges_nil.txt";
+		outputFile = new File(fileName);
+		output = new BufferedWriter(new FileWriter(outputFile));
+		entireUnit = "";
+		for (Thing FU : oneModeObject) {
+			entireUnit = "O" + FU.getType() + "S" + ((Object)FU).getObjectState();
+			for (Thing N : FU.getNeigbourList()) {
+				entireUnit += "\tO" + N.getType() + "S" + ((Object)N).getObjectState(); 
+			}
+			entireUnit += "\n";
+			output.write(entireUnit);
+			entireUnit = "";
+		}
+	
+		output.close();
+		
+		// -- Outputting results while considering INGREDIENTS!
+		fileName = FP.substring(0, FP.length() - 4) + "_node_degrees_ingredients.txt";
+		outputFile = new File(fileName);
+		output = new BufferedWriter(new FileWriter(outputFile));
+
+		// Save the entire network to the  file
+		System.out.println("Saving node degrees to file..");
+		entireUnit = "";
+		for (Thing FU : oneModeObjectIngredients) {
+			entireUnit = (((Object)FU).getObject()).replace("\n", ", ") + " : " + FU.countNeighbours() + " degrees\n";
+			output.write(entireUnit);
+			entireUnit = "";
+		}
+		System.out.println("File saved at "+fileName);	
+		output.close();
+
+		// saving the connections of each object to its neighbouring objects
+		fileName = FP.substring(0, FP.length() - 4) + "_edges_ingredients.txt";
+		outputFile = new File(fileName);
+		output = new BufferedWriter(new FileWriter(outputFile));
+		entireUnit = "";
+		for (Thing FU : oneModeObjectIngredients) {
 			entireUnit = "O" + FU.getType() + "S" + ((Object)FU).getObjectState();
 			for (Thing N : FU.getNeigbourList()) {
 				entireUnit += "\tO" + N.getType() + "S" + ((Object)N).getObjectState(); 
@@ -774,7 +839,7 @@ public class Main {
 			}
 		}
 
-		String fileName = filePath.substring(0, filePath.length() - 4) + "_objects_motions.txt";
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_functional_analysis.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 
