@@ -1,10 +1,22 @@
 package foon;
 
 import java.io.*;
+import java.net.URL;
 import java.util.*;
-import javax.swing.JFileChooser;
-
+import javax.swing.*;
 import org.jblas.*;
+import edu.cmu.lti.lexical_db.ILexicalDatabase;
+import edu.cmu.lti.lexical_db.NictWordNet;
+import edu.cmu.lti.ws4j.impl.Lin;
+import edu.cmu.lti.ws4j.impl.WuPalmer;
+import edu.cmu.lti.ws4j.util.WS4JConfiguration;
+import edu.mit.jwi.*;
+import edu.mit.jwi.Dictionary;
+import edu.mit.jwi.item.IIndexWord;
+import edu.mit.jwi.item.ISynset;
+import edu.mit.jwi.item.IWord;
+import edu.mit.jwi.item.IWordID;
+import edu.mit.jwi.item.POS;
 
 public class Main {
 
@@ -16,31 +28,35 @@ public class Main {
 	//	- File which contains another network we wish to merge with the existing network (temporary)
 	static String graphToBeMerged = "C:/Users/David Paulius/Documents/USF/Research/Graphs/Parsed 2.29.2016/Text Files/x-barbeque ribsNewNewNew2New" + ".txt";
 
-	static ArrayList<Thing> nodes, nodesReversed; // dynamic list of all objects/motions observed in file; keeps track of matrix rows and columns 
-	static int totalNodes = 0; // total number of nodes that are in the network
+	// -- ArrayList of objects and motions from parsing program
+	private static ArrayList<String> objectList;
+	private static ArrayList<String> motionList;
+	
+	private static ArrayList<Thing> nodes, nodesReversed; // dynamic list of all objects/motions observed in file; keeps track of matrix rows and columns 
+	private static int totalNodes = 0; // total number of nodes that are in the network
 
-	static ArrayList<Thing> oneModeObject; // one-mode projection of only object nodes, not accounting states!
-	static ArrayList<Thing> oneModeObjectAbstract; // one-mode projection of only object nodes, accounting for abstract state
-	static ArrayList<Thing> oneModeObjectIngredients; // one-mode projection of only object nodes, accounting for uniqueness of ingredients.
-	static ArrayList<Thing> functionalMotions; 
+	private static ArrayList<Thing> oneModeObject; // one-mode projection of only object nodes, not accounting states!
+	private static ArrayList<Thing> oneModeObjectAbstract; // one-mode projection of only object nodes, accounting for abstract state
+	private static ArrayList<Thing> oneModeObjectIngredients; // one-mode projection of only object nodes, accounting for uniqueness of ingredients.
+	private static ArrayList<Thing> functionalMotions; 
 	static int[] distances;
 
 	static boolean[] visited;
 
-	static int[] motionFrequency; // array to count the number of instances of each motion in a graph
+	private static int[] motionFrequency; // array to count the number of instances of each motion in a graph
 
 	static ArrayList<String> file; 
-	static ArrayList<FunctionalUnit> FOON; // FOON - abstract list
-	static ArrayList<FunctionalUnit> FOON_containers; //  -- this will be the list of FUs taking into account ingredients for uniqueness
+	private static ArrayList<FunctionalUnit> FOON; // FOON - abstract list
+	private static ArrayList<FunctionalUnit> FOON_containers; //  -- this will be the list of FUs taking into account ingredients for uniqueness
 
 	// for backtracking/branch-and-bound algorithm
-	static ArrayList<FunctionalUnit> reverseFOON; // list of all Functional Units in the network but edges are in REVERSE
-	static ArrayList<FunctionalUnit> reverseFOON_containers; // list of all Functional Units in the network but edges are in REVERSE
+	private static ArrayList<FunctionalUnit> reverseFOON; // list of all Functional Units in the network but edges are in REVERSE
+	private static ArrayList<FunctionalUnit> reverseFOON_containers; // list of all Functional Units in the network but edges are in REVERSE
 
 	// adjacency matrix of all objects
-	static double[][] oneModeObjectMatrix;
-	static double[][] oneModeObjectAbstractMatrix;
-	static double[][] oneModeObjectIngredientsMatrix;
+	private static double[][] oneModeObjectMatrix;
+	private static double[][] oneModeObjectAbstractMatrix;
+	private static double[][] oneModeObjectIngredientsMatrix;
 
 	// Testing stack for backtracking purposes
 	static Stack<Thing> backtrack, tempStack;
@@ -85,294 +101,410 @@ public class Main {
 		//	System.out.println(distances[index++]);
 		//}
 
-		System.out.println("********************************************************************");
-		System.out.println("\n	FOON Analysis + Graph Merging Program (revised 11/5/2016)\n");
-		System.out.println("********************************************************************");
+		objectList = new ArrayList<String>();
+		motionList = new ArrayList<String>();
+
+		System.out.println("\n*********************************************************************************************");
+		System.out.println("\n			FOON Analysis + Graph Merging Program (revised 11/5/2016)\n");
+		System.out.println("*********************************************************************************************");
 		
+		populateLists();
+
 		// objects used for taking input from the console:
 		String response;
 		Scanner keyboard = new Scanner(System.in);
-	
-		System.out.print(" -> Perform centrality analysis? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			// creating adjacency matrix for the object graph (TESTING)
-			oneModeObjectAbstractMatrix = new double[oneModeObjectAbstract.size()][oneModeObjectAbstract.size()];
-			oneModeObjectMatrix = new double[oneModeObject.size()][oneModeObject.size()];		
-			populateAdjacencyMatrix(); // populate the structures created above
-			
-			System.out.print(" -> Analysis with/without states? [1/2] > ");
-			response = keyboard.nextLine();
+
+		while (true){
+			response = printMenuOptions(keyboard);	
 			if (response.equals("1")){
-				// Setting matrix object used in centrality analysis
-				DoubleMatrix OMOmatrix = new DoubleMatrix(oneModeObjectAbstractMatrix);
-				//DoubleMatrix OMOmatrix = new DoubleMatrix(test);
-				ComplexDoubleMatrix eigenvalues = Eigen.eigenvalues(OMOmatrix); // all eigenvalues
-				double largest = 0;
-				for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
-					//System.out.print(String.format("%.2f ", eigenvalue.abs()));
-					if (eigenvalue.real() > largest){
-						largest = eigenvalue.abs();
-					}
-				}
+				// -- Reference: http://stackoverflow.com/questions/13525372/mit-java-wordnet-interface-getting-wordnet-lexicographer-classes-or-super-sense 
+				//construct URL to WordNet Dictionary directory on the computer
+		        String path = "C:/Users/David Paulius/Documents/Eclipse/WordNet-3.0/dict";
+		        URL url = new URL("file", null, path);      
 	
-				// values needed for Katz centrality
-				double alpha = 1 / (largest + 0.5); // recommended that it is less than 1/K^1
-				// vectors and matrix needed for Katz computation
-				DoubleMatrix onesVector = DoubleMatrix.ones(oneModeObjectAbstract.size(), 1), 
-						I = DoubleMatrix.eye(oneModeObjectAbstract.size()); // identity matrix
-				DoubleMatrix ans = Solve.pinv((I.sub((OMOmatrix.transpose().mul(alpha))))).mmul(onesVector); // as per 7.10
-				System.out.println("~");
-				int count = 0, maxIndex = 0;;
-				for (double D : ans.toArray()) {
-					if (D > ans.toArray()[maxIndex]) {
-						maxIndex = count;
-					}
-					System.out.println("O" + oneModeObjectAbstract.get(count++).getType() + "\t" + String.format("%.5f ", (D)));
-				}
-				System.out.print("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it -> \n");
-				oneModeObjectAbstract.get(maxIndex).printThing();
+		        //construct the Dictionary object and open it
+		        IDictionary dict = new Dictionary(url);
+		        dict.open();
 	
-				System.out.println("~");		
+		        // look up first sense of the word "dog "
+		        IIndexWord idxWord = dict.getIndexWord ("dog", POS.NOUN );
+		        IWordID wordID = idxWord.getWordIDs().get(0) ;
+		        IWord word = dict.getWord (wordID);         
+		        ISynset synset = word.getSynset();
+		        String LexFileName = synset.getLexicalFile().getName();
+		        System.out.println("Id = " + wordID);
+		        System.out.println(" Lemma = " + word.getLemma());
+		        System.out.println(" Gloss = " + word.getSynset().getGloss());         
+		        System.out.println("Lexical Name : "+ LexFileName);    
+		        
+		        String word1 = "apple", word2 = "bad", word3 = "evil	";
+		        
+		        WS4JConfiguration.getInstance().setMFS(false);
+		        
+		        // Comparison with WordNet corpus using Wu-Palmer metric of similarity..
+		        ILexicalDatabase db = new NictWordNet();
+		        WS4JConfiguration.getInstance().setMFS(true);
+				double s = new Lin(db).calcRelatednessOfWords(word1, word2);
+				System.out.println("Distance between " + word1 + " and " + word2 + " = " + s);
+				s = new Lin(db).calcRelatednessOfWords(word1, word3);
+				System.out.println("Distance between " + word1 + " and " + word3 + " = " + s);
+				s = new Lin(db).calcRelatednessOfWords(word2, word3);
+				System.out.println("Distance between " + word2 + " and " + word3 + " = " + s);
 	
-				// Taken from site: http://www.markhneedham.com/blog/2013/08/05/javajblas-calculating-eigenvector-centrality-of-an-adjacency-matrix/
-				//  - Computing eigenvalue/vector centrality of the purely object node graph
-				eigenvalues = Eigen.eigenvalues(OMOmatrix);
-				//System.out.println("Eigenvalues are as follows: ");
-				//for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
-				//    System.out.print(String.format("%.5f ", eigenvalue.real()));
-				//}
-				System.out.println("\n~");
-				List<Double> principalEigenvector = normalised(getPrincipalEigenvector(OMOmatrix));
-	
-				maxIndex = 0;
-				for (int x = maxIndex + 1; x < principalEigenvector.size(); x++) {
-					if (principalEigenvector.get(maxIndex) < principalEigenvector.get(x)) {
-						maxIndex = x; 
-					}
-				}
-				System.out.print("EIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it -> ");
-				oneModeObjectAbstract.get(maxIndex).printThing();
+				System.out.print("\t -> Input the object found in the environment : > ");
+				response = keyboard.nextLine();
 				
-				maxIndex = 0;
-				int maxDegree = oneModeObjectAbstract.get(maxIndex).countNeighbours(); 
-				for (int x = maxIndex + 1; x < oneModeObjectAbstract.size(); x++) {
-					if (oneModeObjectAbstract.get(maxIndex).countNeighbours() < oneModeObjectAbstract.get(x).countNeighbours()) {
-						maxIndex = x; maxDegree = oneModeObjectAbstract.get(x).countNeighbours();
+				String answer = objectList.get(0);
+				double similarity = new WuPalmer(db).calcRelatednessOfWords(response, answer);
+				for (int x = 1; x < objectList.size(); x++){
+					if (new WuPalmer(db).calcRelatednessOfWords(response, objectList.get(x)) > similarity){
+						answer = objectList.get(x);
+						similarity = new WuPalmer(db).calcRelatednessOfWords(response, answer);
+						System.out.println("Closest object in FOON to " + response + " is " + answer + " with similarity distance of " + similarity);					
 					}
 				}
-				System.out.println("DEGREE: Node " + (maxIndex+1) + " has the largest number of degrees with value of " + maxDegree);
-				oneModeObjectAbstract.get(maxIndex).printThing();
-				System.out.println();
-
-			} else {
-				// Setting matrix object used in centrality analysis
-				DoubleMatrix OMOmatrix = new DoubleMatrix(oneModeObjectMatrix);
-				//DoubleMatrix OMOmatrix = new DoubleMatrix(test);
-				ComplexDoubleMatrix eigenvalues = Eigen.eigenvalues(OMOmatrix); // all eigenvalues
-				double largest = 0;
-				for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
-					//System.out.print(String.format("%.2f ", eigenvalue.abs()));
-					if (eigenvalue.real() > largest){
-						largest = eigenvalue.abs();
-					}
-				}
-	
-				// values needed for Katz centrality
-				double alpha = 1 / (largest + 0.5); // recommended that it is less than 1/K^1
-				// vectors and matrix needed for Katz computation
-				DoubleMatrix onesVector = DoubleMatrix.ones(oneModeObject.size(), 1), 
-						I = DoubleMatrix.eye(oneModeObject.size()); // identity matrix
-				DoubleMatrix ans = Solve.pinv((I.sub((OMOmatrix.transpose().mul(alpha))))).mmul(onesVector); // as per 7.10
-				System.out.println("~");
-				int count = 0, maxIndex = 0;;
-				for (double D : ans.toArray()) {
-					if (D > ans.toArray()[maxIndex]) {
-						maxIndex = count;
-					}
-					System.out.println("O" + oneModeObject.get(count++).getType() + "\t" + String.format("%.5f ", (D)));
-				}
-				System.out.println("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it ->");
-				oneModeObject.get(maxIndex).printThing();
 				
-				System.out.println("~");		
-				
-				// Taken from site: http://www.markhneedham.com/blog/2013/08/05/javajblas-calculating-eigenvector-centrality-of-an-adjacency-matrix/
-				//  - Computing eigenvalue/vector centrality of the purely object node graph
-				eigenvalues = Eigen.eigenvalues(OMOmatrix);
-				//System.out.println("Eigenvalues are as follows: ");
-				//for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
-				//    System.out.print(String.format("%.5f ", eigenvalue.real()));
-				//}
-				System.out.println("\n~");
-				List<Double> principalEigenvector = normalised(getPrincipalEigenvector(OMOmatrix));
-				maxIndex = 0;
-				for (int x = maxIndex + 1; x < principalEigenvector.size(); x++) {
-					if (principalEigenvector.get(maxIndex) < principalEigenvector.get(x)) {
-						maxIndex = x; 
+				System.out.println("Closest object in FOON to " + response + " is " + answer + " with similarity distance of " + similarity);
+			}
+
+			else if (response.equals("2")){
+				// creating adjacency matrix for the object graph (TESTING)
+				oneModeObjectAbstractMatrix = new double[oneModeObjectAbstract.size()][oneModeObjectAbstract.size()];
+				oneModeObjectMatrix = new double[oneModeObject.size()][oneModeObject.size()];		
+				oneModeObjectIngredientsMatrix = new double[oneModeObjectIngredients.size()][oneModeObjectIngredients.size()];
+				populateAdjacencyMatrix(); // populate the structures created above
+				System.out.println(oneModeObjectIngredients.size() + " " + oneModeObjectAbstract.size() + " " + oneModeObject.size());
+				System.out.print(" -> Analysis with/without states/with ingredients? [1/2/3] > ");
+				response = keyboard.nextLine();
+				if (response.equals("1")){
+					// Setting matrix object used in centrality analysis
+					DoubleMatrix OMOmatrix = new DoubleMatrix(oneModeObjectAbstractMatrix);
+					//DoubleMatrix OMOmatrix = new DoubleMatrix(test);
+					ComplexDoubleMatrix eigenvalues = Eigen.eigenvalues(OMOmatrix); // all eigenvalues
+					double largest = 0;
+					for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+						//System.out.print(String.format("%.2f ", eigenvalue.abs()));
+						if (eigenvalue.real() > largest){
+							largest = eigenvalue.abs();
+						}
 					}
-				}
-				System.out.println("EIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it ->");
-				oneModeObject.get(maxIndex).printThing();
-				
-				maxIndex = 0;
-				int maxDegree = oneModeObject.get(maxIndex).countNeighbours(); 
-				for (int x = maxIndex + 1; x < oneModeObject.size(); x++) {
-					if (oneModeObject.get(maxIndex).countNeighbours() < oneModeObject.get(x).countNeighbours()) {
-						maxIndex = x; maxDegree = oneModeObject.get(x).countNeighbours();
-					}
-				}			
-				System.out.println("\nDEGREE: Node " + (maxIndex+1) + " has the largest number of degrees with value of " + maxDegree);
-				oneModeObject.get(maxIndex).printThing();
-				System.out.println();
-			}
-		}
-
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Count all nodes in the graph? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			int count = 0;
-			for (Thing T : nodes) {
-				if (T instanceof Object){
-					count++;
-				}
-			}
-			System.out.println(count + " object nodes found in graph!");
-			count = 0;
-			for (Thing T : nodes) {
-				if (T instanceof Motion){
-					count++;
-				}
-			}
-			System.out.println(count + " motion nodes found in graph!");
-		}
-
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Print all functional units (not considering ingredients)? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			for (FunctionalUnit T : FOON){
-				T.printFunctionalUnitNoIngredients();
-			}
-		}
 		
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Print all functional units (considering ingredients)? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){		
-			for (FunctionalUnit T : FOON_containers){
-				T.printFunctionalUnit();
-			}
-		}
-		System.out.println("\n~\n");
+					// values needed for Katz centrality
+					double alpha = 1 / (largest + 0.5); // recommended that it is less than 1/K^1
+					// vectors and matrix needed for Katz computation
+					DoubleMatrix onesVector = DoubleMatrix.ones(oneModeObjectAbstract.size(), 1), 
+							I = DoubleMatrix.eye(oneModeObjectAbstract.size()); // identity matrix
+					DoubleMatrix ans = Solve.pinv((I.sub((OMOmatrix.transpose().mul(alpha))))).mmul(onesVector); // as per 7.10
+					System.out.println("~");
+					int count = 0, maxIndex = 0;;
+					for (double D : ans.toArray()) {
+						if (D > ans.toArray()[maxIndex]) {
+							maxIndex = count;
+						}
+						System.out.println("O" + oneModeObjectAbstract.get(count).getType() + "S" + ((Object)oneModeObjectAbstract.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
+					}
+					System.out.print("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it -> \n");
+					oneModeObjectAbstract.get(maxIndex).printThing();
 		
-		System.out.print(" -> Produce functional object-motion files?? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			getObjectMotions(); 
-			motionFrequency = new int[87]; // -- we should have around 5X motions
-			populateFrequencyList();
-		}
-
-		System.out.println("\n~\n");
-
-		// Test to print all nodes
-		System.out.print(" -> Print all nodes? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			printAllNodes();
-		}
-
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Print all nodes in REVERSE order? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			printAllNodesReversed();
-		}
-
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Print objects as one-mode projected graph? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			printAllOneModeNodes();
-			System.out.println("\n~\n");
-			printAllOneModeNodesNoState();
-			System.out.println("\n~\n");
-			outputGraphDegree(filePath);
-		}
-
-		System.out.println("\n~\n");
-
-		// Merging new graph (given text file) by calling upon constructGraphs() method; just pass Scanner of that file
-		System.out.print(" -> Perform merging of graphs? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			System.err.println("Please select the FOLDER/DIRECTORY with all files you wish to merge with current file!");
-			Thread.sleep(3000);
-			
-			// Create file explorer dialog to select the directory
-			chooser = new JFileChooser();
-			chooser.setCurrentDirectory(new java.io.File("."));
-			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			chooser.setDialogTitle("FOON_analysis - Choose directory with all files to merge:");
-			chooser.setAcceptAllFileFilterUsed(true);
-			
-			if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-				System.out.println("Directory selected is : " + chooser.getSelectedFile());
-			} else {
-				System.err.println("Error in getting path of directory!");
-				keyboard.close();
-				return;
-			}
-			
-			File directory = chooser.getSelectedFile();
-			File[] listOfFiles = directory.listFiles();
-			for (File F : listOfFiles){
-				System.out.println(F.getName());
-				if (!F.getName().equals(filePath)) {
-					totalNodes = constructFUGraph(new Scanner(F));
+		
+					// Taken from site: http://www.markhneedham.com/blog/2013/08/05/javajblas-calculating-eigenvector-centrality-of-an-adjacency-matrix/
+					//  - Computing eigenvalue/vector centrality of the purely object node graph
+					eigenvalues = Eigen.eigenvalues(OMOmatrix);
+					//System.out.println("Eigenvalues are as follows: ");
+					//for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+					//    System.out.print(String.format("%.5f ", eigenvalue.real()));
+					//}
+					System.out.println("\n~");
+					
+					List<Double> principalEigenvector = normalised(getPrincipalEigenvector(OMOmatrix));
+		
+					maxIndex = 0;
+					for (int x = maxIndex + 1; x < principalEigenvector.size(); x++) {
+						if (principalEigenvector.get(maxIndex) < principalEigenvector.get(x)) {
+							maxIndex = x; 
+						}
+					}
+					System.out.print("\nEIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it -> ");
+					oneModeObjectAbstract.get(maxIndex).printThing();
+	
+					System.out.println("\n~");		
+	
+					maxIndex = 0;
+					int maxDegree = oneModeObjectAbstract.get(maxIndex).countNeighbours(); 
+					for (int x = maxIndex + 1; x < oneModeObjectAbstract.size(); x++) {
+						if (oneModeObjectAbstract.get(maxIndex).countNeighbours() < oneModeObjectAbstract.get(x).countNeighbours()) {
+							maxIndex = x; maxDegree = oneModeObjectAbstract.get(x).countNeighbours();
+						}
+					}
+					System.out.println("\nDEGREE: Node " + (maxIndex+1) + " has the largest number of degrees with value of " + maxDegree);
+					oneModeObjectAbstract.get(maxIndex).printThing();
+					System.out.println();
+	
+				} else if (response.equals("2")) {
+					// Setting matrix object used in centrality analysis
+					DoubleMatrix OMOmatrix = new DoubleMatrix(oneModeObjectMatrix);
+					//DoubleMatrix OMOmatrix = new DoubleMatrix(test);
+					ComplexDoubleMatrix eigenvalues = Eigen.eigenvalues(OMOmatrix); // all eigenvalues
+					double largest = 0;
+					for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+						//System.out.print(String.format("%.2f ", eigenvalue.abs()));
+						if (eigenvalue.real() > largest){
+							largest = eigenvalue.abs();
+						}
+					}
+		
+					// values needed for Katz centrality
+					double alpha = 1 / (largest + 0.5); // recommended that it is less than 1/K^1
+					// vectors and matrix needed for Katz computation
+					DoubleMatrix onesVector = DoubleMatrix.ones(oneModeObject.size(), 1), 
+							I = DoubleMatrix.eye(oneModeObject.size()); // identity matrix
+					DoubleMatrix ans = Solve.pinv((I.sub((OMOmatrix.transpose().mul(alpha))))).mmul(onesVector); // as per 7.10
+					System.out.println("~");
+					int count = 0, maxIndex = 0;;
+					for (double D : ans.toArray()) {
+						if (D > ans.toArray()[maxIndex]) {
+							maxIndex = count;
+						}
+						System.out.println("O" + oneModeObject.get(count++).getType() + "\t" + String.format("%.5f ", (D)));
+					}
+					System.out.println("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it ->");
+					oneModeObject.get(maxIndex).printThing();
+					
+					System.out.println("\n~");		
+	
+					// Taken from site: http://www.markhneedham.com/blog/2013/08/05/javajblas-calculating-eigenvector-centrality-of-an-adjacency-matrix/
+					//  - Computing eigenvalue/vector centrality of the purely object node graph
+					eigenvalues = Eigen.eigenvalues(OMOmatrix);
+					//System.out.println("Eigenvalues are as follows: ");
+					//for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+					//    System.out.print(String.format("%.5f ", eigenvalue.real()));
+					//}
+					List<Double> principalEigenvector = normalised(getPrincipalEigenvector(OMOmatrix));
+					maxIndex = 0;
+					for (int x = maxIndex + 1; x < principalEigenvector.size(); x++) {
+						if (principalEigenvector.get(maxIndex) < principalEigenvector.get(x)) {
+							maxIndex = x; 
+						}
+					}
+					System.out.println("\nEIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it ->");
+					oneModeObject.get(maxIndex).printThing();
+	
+					System.out.println("\n~");		
+	
+					maxIndex = 0;
+					int maxDegree = oneModeObject.get(maxIndex).countNeighbours(); 
+					for (int x = maxIndex + 1; x < oneModeObject.size(); x++) {
+						if (oneModeObject.get(maxIndex).countNeighbours() < oneModeObject.get(x).countNeighbours()) {
+							maxIndex = x; maxDegree = oneModeObject.get(x).countNeighbours();
+						}
+					}			
+					System.out.println("\nDEGREE: Node " + (maxIndex+1) + " has the largest number of degrees with value of " + maxDegree);
+					oneModeObject.get(maxIndex).printThing();
+					System.out.println();
+				} else {
+					// Setting matrix object used in centrality analysis
+					DoubleMatrix OMOmatrix = new DoubleMatrix(oneModeObjectIngredientsMatrix);
+					//DoubleMatrix OMOmatrix = new DoubleMatrix(test);
+					ComplexDoubleMatrix eigenvalues = Eigen.eigenvalues(OMOmatrix); // all eigenvalues
+					double largest = 0;
+					for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+						//System.out.print(String.format("%.2f ", eigenvalue.abs()));
+						if (eigenvalue.real() > largest){
+							largest = eigenvalue.abs();
+						}
+					}
+		
+					// values needed for Katz centrality
+					double alpha = 1 / (largest + 0.5); // recommended that it is less than 1/K^1
+					// vectors and matrix needed for Katz computation
+					DoubleMatrix onesVector = DoubleMatrix.ones(oneModeObjectIngredients.size(), 1), 
+							I = DoubleMatrix.eye(oneModeObjectIngredients.size()); // identity matrix
+					DoubleMatrix ans = Solve.pinv((I.sub((OMOmatrix.transpose().mul(alpha))))).mmul(onesVector); // as per 7.10
+					System.out.println("~");
+					int count = 0, maxIndex = 0;;
+					for (double D : ans.toArray()) {
+						if (D > ans.toArray()[maxIndex]) {
+							maxIndex = count;
+						}
+						System.out.println("O" + oneModeObjectIngredients.get(count).getType() + "S" + ((Object)oneModeObjectIngredients.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
+					}
+					System.out.println("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it ->");
+					oneModeObjectIngredients.get(maxIndex).printThing();
+									
+					// Taken from site: http://www.markhneedham.com/blog/2013/08/05/javajblas-calculating-eigenvector-centrality-of-an-adjacency-matrix/
+					//  - Computing eigenvalue/vector centrality of the purely object node graph
+					eigenvalues = Eigen.eigenvalues(OMOmatrix);
+					//System.out.println("Eigenvalues are as follows: ");
+					//for (ComplexDouble eigenvalue : eigenvalues.toArray()) {
+					//    System.out.print(String.format("%.5f ", eigenvalue.real()));
+					//}
+					System.out.println("\n~");
+					List<Double> principalEigenvector = normalised(getPrincipalEigenvector(OMOmatrix));
+					maxIndex = 0;
+					for (int x = maxIndex + 1; x < principalEigenvector.size(); x++) {
+						if (principalEigenvector.get(maxIndex) < principalEigenvector.get(x)) {
+							maxIndex = x; 
+						}
+					}
+					System.out.println("\nEIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it ->");
+					oneModeObjectIngredients.get(maxIndex).printThing();
+	
+					System.out.println("\n~");		
+	
+					maxIndex = 0;
+					int maxDegree = oneModeObjectIngredients.get(maxIndex).countNeighbours(); 
+					for (int x = maxIndex + 1; x < oneModeObjectIngredients.size(); x++) {
+						if (oneModeObjectIngredients.get(maxIndex).countNeighbours() < oneModeObjectIngredients.get(x).countNeighbours()) {
+							maxIndex = x; maxDegree = oneModeObjectIngredients.get(x).countNeighbours();
+						}
+					}			
+					System.out.println("\nDEGREE: Node " + (maxIndex+1) + " has the largest number of degrees with value of " + maxDegree);
+					oneModeObjectIngredients.get(maxIndex).printThing();
+					System.out.println();
 				}
 			}
-			totalNodes = constructFUGraph(new Scanner(new File(graphToBeMerged)));
-			//printAllNodes();
-			outputMergedGraph(filePath);
-			outputGraphDegree(filePath);
-		}
+			
+			else if (response.equals("3")){
+				// 	-- Count all nodes in the graph?
+				int count = 0;
+				for (Thing T : nodes) {
+					if (T instanceof Object){
+						count++;
+					}
+				}
+				System.out.println(count + " object nodes found in graph!");
+				count = 0;
+				for (Thing T : nodes) {
+					if (T instanceof Motion){
+						count++;
+					}
+				}
+				System.out.println(count + " motion nodes found in graph!");
+			}
+	
+			else if (response.equals("4")){
+				//	-- Produce functional object-motion files??
+				getObjectMotions(); 
+				motionFrequency = new int[motionList.size()]; // -- we should have around 5X motions; use the motion index!
+				populateFrequencyList();
+			}
+			
+			else if (response.equals("5")){
+				System.err.println("Please select the FOLDER/DIRECTORY with all files you wish to merge with current file!");
+				Thread.sleep(3000);
+				
+				// Create file explorer dialog to select the directory
+				chooser = new JFileChooser();
+				chooser.setCurrentDirectory(new java.io.File("."));
+				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+				chooser.setDialogTitle("FOON_analysis - Choose directory with all files to merge:");
+				chooser.setAcceptAllFileFilterUsed(true);
+				
+				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					System.out.println("Directory selected is : " + chooser.getSelectedFile());
+				} else {
+					System.err.println("Error in getting path of directory!");
+					keyboard.close();
+					return;
+				}
+				
+				File directory = chooser.getSelectedFile();
+				File[] listOfFiles = directory.listFiles();
+				for (File F : listOfFiles){
+					System.out.println(F.getName());
+					if (!F.getName().equals(filePath)) {
+						totalNodes = constructFUGraph(new Scanner(F));
+					}
+				}
+				//totalNodes = constructFUGraph(new Scanner(new File(graphToBeMerged)));
+				//printAllNodes();
+				outputMergedGraph(filePath);
+				outputGraphDegree(filePath);
+			}
+			
+			else if (response.equals("6")){
+				System.out.print("\tType the Object NUMBER to find: > ");
+				int objectN = keyboard.nextInt();
+				System.out.print("\tType the Object STATE to find: > ");
+				int objectS = keyboard.nextInt();
+				Object searchObject = new Object(objectN, objectS);
+				System.out.println();
+				searchForRecipe2(searchObject);	
+			}
+	
 
-		System.out.println("\n~\n");
-
-		System.out.print(" -> Search for recipe? [Y/N] > ");
-		response = keyboard.nextLine();
-		if (response.equals("Y")){
-			System.out.print("\tType the Object NUMBER to find: > ");
-			int objectN = keyboard.nextInt();
-			System.out.print("\tType the Object STATE to find: > ");
-			int objectS = keyboard.nextInt();
-			Object searchObject = new Object(objectN, objectS);
+			else if (response.equals("7")){
+				printAllNodes();
+			}
+			
+			else if (response.equals("8")){
+				printAllNodesReversed();
+			}
+			
+			else if (response.equals("9")){
+				printAllOneModeNodes();
+				System.out.println("\n~\n");
+				printAllOneModeNodesNoState();
+				System.out.println("\n~\n");
+				outputGraphDegree(filePath);
+			}
+	
+			else if (response.equals("10")){
+				for (FunctionalUnit T : FOON){
+					T.printFunctionalUnitNoIngredients();
+				}
+			}
+			
+			
+			else if (response.equals("11")){		
+				for (FunctionalUnit T : FOON_containers){
+					T.printFunctionalUnit();
+				}
+			}
+			
+			else break;
+			
 			System.out.println();
-			searchForRecipe2(searchObject);	
 		}
-
+		
 		keyboard.close(); // closing the Scanner input
-
+	
 		System.out.print("\nTerminating program.");
-		Thread.sleep(1000);
+		Thread.sleep(500);
 		System.out.print(".");
-		Thread.sleep(1000);
+		Thread.sleep(500);
 		System.out.print(".");
-		Thread.sleep(1000);
+		Thread.sleep(500);
 		System.out.print(".");
-		Thread.sleep(1000);
+		Thread.sleep(500);
 		System.out.print(".");
+		
+	}
+	
+	public static String printMenuOptions(Scanner keyboard){
+		// Printing all options for program functions:
+		System.out.println("*********************************************************************************************");
+		System.out.println("*************				MENU OPTIONS				*************");
+		System.out.println("*********************************************************************************************");
+		System.out.println("\t1.	Similarity test with WordNet?");
+		System.out.println("\t2.	Perform centrality analysis?");
+		System.out.println("\t3.	Count all nodes in the graph?");
+		System.out.println("\t4.	Produce functional object-motion files?? [Y/N] > ");
+		System.out.println("\t5.	Perform merging of graphs? [Y/N] > ");
+		System.out.println("\t6.	Search for recipe? [Y/N] > ");
+		System.out.println("\t7.	Print all nodes? [Y/N] > ");
+		System.out.println("\t8.	Print all nodes in REVERSE order? [Y/N] > ");
+		System.out.println("\t9.	Print objects as one-mode projected graph? [Y/N] > ");
+		System.out.println("\t10.	Print all functional units (not considering ingredients)?");
+		System.out.println("\t11.	Print all functional units (considering ingredients)?");
+		System.out.println("(Press any other key and ENTER to exit)");
+		System.out.print("\nPlease enter your response here: > ");
+
+		String response = keyboard.nextLine();
+		return response;
 	}
 
-	public static int exploreNeighbours(int N){
+	private static int exploreNeighbours(int N){
 		Thing temp = oneModeObject.get(N);
 		int count = 0;
 		if (temp.countNeighbours() == 0){
@@ -383,8 +515,51 @@ public class Main {
 		}
 		return count;
 	}
+	
+	private static void populateLists() throws Exception {
+		// Opens a dialog that will be used for opening the network file:
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("."));
+		chooser.setDialogTitle("FOON_analysis - Choose the OBJECT index file:");
+		chooser.setAcceptAllFileFilterUsed(true);
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			System.out.println("Object Index found at location : " + chooser.getSelectedFile());
+		} else {
+			System.err.println("Error in getting path of file!");
+			return;
+		}
+						
+		@SuppressWarnings("resource")
+		Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
+		
+		while(file.hasNext()) {
+			String line = file.nextLine();
+			String[] parts = line.split("\t");
+			objectList.add(parts[1]);
+		}
+		
+		chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("."));
+		chooser.setDialogTitle("FOON_analysis - Choose the MOTION index file:");
+		chooser.setAcceptAllFileFilterUsed(true);
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			System.out.println("Motion Index found at location : " + chooser.getSelectedFile());
+		} else {
+			System.err.println("Error in getting path of file!");
+			return;
+		}
+						
+		file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
+		
+		while(file.hasNext()) {
+			String line = file.nextLine();
+			String[] parts = line.split("\t");
+			motionList.add(parts[1]);
+		}
+		System.out.println();
+	}
 
-	public static void outputMergedGraph(String FP) throws Exception{
+	private static void outputMergedGraph(String FP) throws Exception{
 		// Preparing for output
 		File outputFile = new File(FP);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
@@ -403,7 +578,7 @@ public class Main {
 		output.close();
 	}
 
-	public static void populateFrequencyList() throws Exception {
+	private static void populateFrequencyList() throws Exception {
 		int total = 0, motions = 0, objects = 0, edges = 0;
 		for (Thing T : nodes) {
 			if (T instanceof Motion) {
@@ -423,8 +598,8 @@ public class Main {
 			}
 		}
 		System.out.println("There is a total of " + total + " nodes in FOON presently, with " + edges + " edges!" );
-		System.out.println(" -> " + objects + " object nodes in FOON presently!" );
-		System.out.println(" -> " + motions + " motion nodes in FOON presently!" );
+		System.out.println("	-> " + objects + " object nodes in FOON presently!" );
+		System.out.println("	-> " + motions + " motion nodes in FOON presently!" );
 		System.out.println("Most frequent motion found in FOON was M_" + maxIndex + ", with frequency of " + (double)motionFrequency[maxIndex]/motions * 1.0);
 
 		String fileName = filePath.substring(0, filePath.length() - 4) + "_motions.txt";
@@ -437,7 +612,7 @@ public class Main {
 		output.close();
 	}
 
-	public static void outputGraphDegree(String FP) throws Exception{
+	private static void outputGraphDegree(String FP) throws Exception{
 		// Preparing for output
 		String fileName = FP.substring(0, FP.length() - 4) + "_degree.txt";
 		File outputFile = new File(fileName);
@@ -471,7 +646,7 @@ public class Main {
 		output.close();
 	}
 
-	public static void printAllNodes() throws Exception{
+	private static void printAllNodes() throws Exception{
 		System.out.println(totalNodes + " nodes found in graph!");
 		String fileName = filePath.substring(0, filePath.length() - 4) + "_all_nodes.txt";
 		File outputFile = new File(fileName);
@@ -500,7 +675,7 @@ public class Main {
 		output.close();
 	}
 
-	public static void printAllNodesReversed(){
+	private static void printAllNodesReversed(){
 		System.out.println(totalNodes + " nodes found in graph!");
 		System.out.println(nodesReversed.size() + " nodes found in graph!");
 		int count = 0;
@@ -517,7 +692,7 @@ public class Main {
 		}
 	}
 
-	public static void printAllOneModeNodes(){
+	private static void printAllOneModeNodes(){
 		System.out.println(oneModeObjectAbstract.size() + " nodes found in graph!");
 		int count = 0;
 		for (Thing n : oneModeObjectAbstract) {
@@ -530,7 +705,7 @@ public class Main {
 		}
 	}
 
-	public static void printAllOneModeNodesNoState(){
+	private static void printAllOneModeNodesNoState(){
 		System.out.println(oneModeObject.size() + " nodes found in graph!");
 		int count = 0;
 		for (Thing n : oneModeObject) {
@@ -543,7 +718,7 @@ public class Main {
 		}
 	}
 
-	public static void populateAdjacencyMatrix() {
+	private static void populateAdjacencyMatrix() {
 		for (int x = 0; x < oneModeObjectAbstract.size(); x++) {
 			oneModeObjectAbstractMatrix[x][x] = 1;
 			for (Thing T : oneModeObjectAbstract.get(x).getNeigbourList()){
@@ -560,16 +735,16 @@ public class Main {
 			}
 		}
 
-		//for (int x = 0; x < oneModeObject.size(); x++) {
-		//	for (int y = 0; y < oneModeObject.size(); y++) {
-		//		int edge = (int) (oneModeObjectMatrix[x][y]);
-		//	//System.out.print(edge + " ");
-		//	}
-		//System.out.println();
-		//}
+		for (int x = 0; x < oneModeObjectIngredients.size(); x++) {
+			oneModeObjectIngredientsMatrix[x][x] = 1;
+			for (Thing T : oneModeObjectIngredients.get(x).getNeigbourList()){
+				int toEdge = oneModeObjectIngredients.indexOf(T);
+				oneModeObjectIngredientsMatrix[x][toEdge] = 1;
+			}
+		}
 	}
 
-	public static void getObjectMotions() throws Exception{
+	private static void getObjectMotions() throws Exception{
 		for (Thing T : nodes) {
 			if (T instanceof Object) {
 				Thing tempObject; int found = -1; 
@@ -729,7 +904,7 @@ public class Main {
 		}
 	}
 
-	public static boolean FUExists(FunctionalUnit U, int A){
+	private static boolean FUExists(FunctionalUnit U, int A){
 		// Four (4) cases:
 		//	-- the first two check if a functional unit is equal based on the ABSTRACT method (not accounting all ingredients)
 		if (A == 1){
@@ -738,7 +913,7 @@ public class Main {
 			}
 			for(FunctionalUnit F : FOON){
 				if (F.equals(U)){
-					System.out.println("Functional unit already exists in FOON!");
+					System.out.println("Functional unit (no ingredients) already exists in FOON!");
 					U.printFunctionalUnit();
 					return true;
 				}
@@ -751,7 +926,7 @@ public class Main {
 			}
 			for(FunctionalUnit F : reverseFOON){
 				if (F.equals(U)){
-					System.out.println("Functional unit already exists in FOON!");
+					System.out.println("Functional unit already exists in reversed FOON!");
 					U.printFunctionalUnit();
 					return true;
 				}
@@ -788,7 +963,7 @@ public class Main {
 
 	}
 
-	public static int constructFUGraph(Scanner readFile) throws Exception {
+	private static int constructFUGraph(Scanner readFile) throws Exception {
 		int count = totalNodes; // we have an idea of how many objects may be in the graph by the number of lines
 		String[] stateParts, objectParts, motionParts; // objects used to contain the split strings
 
@@ -826,7 +1001,6 @@ public class Main {
 
 				// read the next line containing the Object state information
 				line = readFile.nextLine();
-
 				stateParts = line.split("S", 2); // get the Object's state identifier by splitting first instance of S
 				stateParts = stateParts[1].split("\t");
 
@@ -887,12 +1061,11 @@ public class Main {
 				}
 			}
 		}
-
 		readFile.close();
 		return count;
 	}
 	
-	public static void makeReverseFU(FunctionalUnit newFU){
+	private static void makeReverseFU(FunctionalUnit newFU){
 		FunctionalUnit reverseFU = new FunctionalUnit();
 		Motion tempMotion = new Motion(((Motion)newFU.getMotion()).getMotionType());
 		tempMotion.setLabel(((Motion)newFU.getMotion()).getLabel());
@@ -945,7 +1118,7 @@ public class Main {
 		reverseFOON.add(reverseFU);
 	}
 
-	public static void makeReverseFU_Container(FunctionalUnit newFU){
+	private static void makeReverseFU_Container(FunctionalUnit newFU){
 		FunctionalUnit reverseFU = new FunctionalUnit();
 		// if this functional unit does not exist, then the reverse should not exist either!
 		Motion tempMotion = new Motion(((Motion)newFU.getMotion()).getMotionType());
@@ -1000,7 +1173,7 @@ public class Main {
 	}
 
 
-	public static void addOneModeProjection(FunctionalUnit newFU){
+	private static void addOneModeProjection(FunctionalUnit newFU){
 		ArrayList<Thing> tempList = new ArrayList<Thing>();
 
 		// creating one-mode projection: take the input first and then the output nodes.
@@ -1051,7 +1224,7 @@ public class Main {
 	}	
 	
 
-	public static void addOneModeAbstract(FunctionalUnit newFU){
+	private static void addOneModeAbstract(FunctionalUnit newFU){
 		ArrayList<Thing> tempList = new ArrayList<Thing>();
 		// creating one-mode projection: take the input first and then the output nodes.
 		for (Thing T : newFU.getInputList()) {
@@ -1095,7 +1268,7 @@ public class Main {
 	}
 	
 
-	public static void addOneModeIngredients(FunctionalUnit newFU){
+	private static void addOneModeIngredients(FunctionalUnit newFU){
 		ArrayList<Thing> tempList = new ArrayList<Thing>();
 		// creating one-mode projection: take the input first and then the output nodes.
 		for (Thing T : newFU.getInputList()) {
@@ -1141,7 +1314,7 @@ public class Main {
 
 	}
 	
-	public static void searchForRecipe(Object O) {
+	private static void searchForRecipe(Object O) {
 		Queue<Thing> itemsToSearch = new LinkedList<Thing>(); // Queue structure needed for BFS
 		int index = -1; 
 		// searching for the object in the FOON
@@ -1204,8 +1377,7 @@ public class Main {
 		return;
 	}
 
-	public static void searchForRecipe2(Object O) {
-
+	private static void searchForRecipe2(Object O) {
 		Queue<Thing> itemsToSearch = new LinkedList<Thing>(); // Queue structure needed for BFS
 		int index = -1; 
 		// searching for the object in the FOON

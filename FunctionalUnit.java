@@ -10,6 +10,7 @@ public class FunctionalUnit {
 						outputNodes; // output Objects
 	private Thing motionNode; // Motion observed in the FU					
 	// This will be a pair of lists maintained to say whether object was seen moving/not moving
+	
 	private List<Integer> inDescriptor, outDescriptor;  
 	
 	
@@ -151,16 +152,18 @@ public class FunctionalUnit {
 		// print all input Object nodes
 		int count = 0;
 		for (Thing T: inputNodes){
-			((Object)T).printObject();
+			System.out.print("O" + ((Object)T).getObjectType() + "\t" + ((Object)T).getObjectLabel());
 			System.out.println("\t" + inDescriptor.get(count++));
+			System.out.println("S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + ((Object)T).getIngredients());
 		}
 		// print the Motion node
 		((Motion)motionNode).printMotion();
 		// print all output Object nodes
 		count = 0;
 		for (Thing T: outputNodes){
-			((Object)T).printObject();
+			System.out.print("O" + ((Object)T).getObjectType() + "\t" + ((Object)T).getObjectLabel());
 			System.out.println("\t" + outDescriptor.get(count++));
+			System.out.println("S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + ((Object)T).getIngredients());
 		}
 	}
 	
@@ -187,7 +190,10 @@ public class FunctionalUnit {
 		int count = 0;
 		for (Thing T : inputNodes){
 			// just keep adding all Strings which describe all Objects and then return
-			cat = cat + (((Object)T).getObject()) + "\t" + inDescriptor.get(count++) + "\n"; 
+			cat += "O" + ((Object)T).getObjectType() + "\t" + ((Object)T).getObjectLabel();
+			cat += "\t" + inDescriptor.get(count++) + "\n";
+			cat += "S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + "\t" + ((Object)T).getIngredients() + "\n";
+ 
 		}
 		return cat;
 	}
@@ -201,7 +207,9 @@ public class FunctionalUnit {
 		int count = 0;
 		for (Thing T : outputNodes){
 			// just keep adding all Strings which describe all Objects and then return
-			cat = cat + (((Object)T).getObject()) + "\t" + outDescriptor.get(count++) + "\n"; 
+			cat += "O" + ((Object)T).getObjectType() + "\t" + ((Object)T).getObjectLabel();
+			cat += "\t" + outDescriptor.get(count++) + "\n";
+			cat += "S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + "\t" + ((Object)T).getIngredients() + "\n";
 		}
 		return cat;
 	}

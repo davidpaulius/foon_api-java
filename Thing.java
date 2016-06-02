@@ -158,6 +158,10 @@ class Object extends Thing {
     	return false;
     }
 
+    public String getObjectLabel(){
+    	return getLabel();
+    }
+    
     public int getObjectType(){
         return getType();
     }
@@ -218,6 +222,9 @@ class Object extends Thing {
     
     public String getIngredients(){
     	String result = "";
+    	if (numIngredients == 0){
+    		return result;
+    	}
     	result += "{";
     	for (int count = 0; count < numIngredients; count++){
 			result += "O" + contained.get(count);
