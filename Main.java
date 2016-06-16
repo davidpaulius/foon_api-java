@@ -224,7 +224,7 @@ public class Main {
 							maxIndex = x; 
 						}
 					}
-					System.out.print("\nEIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it -> ");
+					System.out.println("\nEIGEN: Node " + (maxIndex+1) + " has the largest eigenvalue associated with it -> ");
 					oneModeObjectAbstract.get(maxIndex).printThing();
 	
 					System.out.println("\n~");		
@@ -489,12 +489,12 @@ public class Main {
 		System.out.println("\t1.	Similarity test with WordNet?");
 		System.out.println("\t2.	Perform centrality analysis?");
 		System.out.println("\t3.	Count all nodes in the graph?");
-		System.out.println("\t4.	Produce functional object-motion files?? [Y/N] > ");
-		System.out.println("\t5.	Perform merging of graphs? [Y/N] > ");
-		System.out.println("\t6.	Search for recipe? [Y/N] > ");
-		System.out.println("\t7.	Print all nodes? [Y/N] > ");
-		System.out.println("\t8.	Print all nodes in REVERSE order? [Y/N] > ");
-		System.out.println("\t9.	Print objects as one-mode projected graph? [Y/N] > ");
+		System.out.println("\t4.	Produce functional object-motion files?");
+		System.out.println("\t5.	Perform merging of graphs?");
+		System.out.println("\t6.	Search for recipe?");
+		System.out.println("\t7.	Print all nodes?");
+		System.out.println("\t8.	Print all nodes in REVERSE order?");
+		System.out.println("\t9.	Print objects as one-mode projected graph?");
 		System.out.println("\t10.	Print all functional units (not considering ingredients)?");
 		System.out.println("\t11.	Print all functional units (considering ingredients)?");
 		System.out.println("(Press any other key and ENTER to exit)");
@@ -654,7 +654,7 @@ public class Main {
 		System.out.println("Saving node degrees to file..");
 		entireUnit = "";
 		for (Thing FU : oneModeObject) {
-			entireUnit = (((Object)FU).getObject()).replace("\n", ", ") + " : " + FU.countNeighbours() + " degrees\n";
+			entireUnit = FU.getType() + " : " + FU.countNeighbours() + " degrees\n";
 			output.write(entireUnit);
 			entireUnit = "";
 		}
@@ -667,9 +667,9 @@ public class Main {
 		output = new BufferedWriter(new FileWriter(outputFile));
 		entireUnit = "";
 		for (Thing FU : oneModeObject) {
-			entireUnit = "O" + FU.getType() + "S" + ((Object)FU).getObjectState();
+			entireUnit = "O" + FU.getType();
 			for (Thing N : FU.getNeigbourList()) {
-				entireUnit += "\tO" + N.getType() + "S" + ((Object)N).getObjectState(); 
+				entireUnit += "\tO" + N.getType(); 
 			}
 			entireUnit += "\n";
 			output.write(entireUnit);
