@@ -3,8 +3,11 @@ package foon;
 import java.io.*;
 import java.net.URL;
 import java.util.*;
+
 import javax.swing.*;
+
 import org.jblas.*;
+
 import edu.cmu.lti.lexical_db.ILexicalDatabase;
 import edu.cmu.lti.lexical_db.NictWordNet;
 import edu.cmu.lti.ws4j.impl.Lin;
@@ -423,13 +426,67 @@ public class Main {
 			}
 			
 			else if (response.equals("6")){
+				// -- First, user gives the program object NUMBER and STATE to find:
 				System.out.print("\tType the Object NUMBER to find: > ");
 				int objectN = keyboard.nextInt();
 				System.out.print("\tType the Object STATE to find: > ");
 				int objectS = keyboard.nextInt();
 				Object searchObject = new Object(objectN, objectS);
-				System.out.println();
-				searchForRecipe2(searchObject);	
+				System.out.println("Please select file with all OBJECTS IN ENVIRONMENT.\n");
+				
+				// -- Secondly, user will provide a list of all items 
+				//		currently in the environment (for now...)
+				chooser = new JFileChooser();
+				chooser.setCurrentDirectory(new java.io.File("."));
+				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+				chooser.setDialogTitle("FOON_analysis - Choose file with items in Environment:");
+				chooser.setAcceptAllFileFilterUsed(true);
+				
+				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					System.out.println("Directory selected is : " + chooser.getSelectedFile());
+				} else {
+					System.err.println("Error in getting path of directory!");
+					keyboard.close();
+					return;
+				}
+				
+				// -- all ingredients/utensils available in scene will be stored in a 
+				//		set data structure, taking into account only unique objects.
+				HashSet<Object> kitchenItems = new HashSet<Object>();
+				
+				// -- reading in all available items from file:
+				Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));				
+				while(file.hasNext()) {
+					String line = file.nextLine();
+					if (line.startsWith("O")){
+						String[] objectParts = line.split("O", 2); // get the Object identifier by splitting first instance of O
+						objectParts = objectParts[1].split("\t");
+
+						// read the next line containing the Object state information
+						line = file.nextLine();
+						String[] stateParts = line.split("S", 2); // get the Object's state identifier by splitting first instance of S
+						stateParts = stateParts[1].split("\t");
+
+						// create new Object node
+						Object newObject = new Object(Integer.parseInt(objectParts[0]), Integer.parseInt(stateParts[0]), objectParts[1], stateParts[1]);
+
+						// checking if this object is a container:
+						if (stateParts.length > 2){
+							String [] ingredients = { stateParts[2] }, temp;
+							ingredients = ingredients[0].split("\\{");
+							ingredients = ingredients[1].split("\\}");
+							ingredients = ingredients[0].split(",");
+							for (String I : ingredients){
+								temp = I.split("O");
+								newObject.setIngredient(Integer.parseInt(temp[1]));
+							}
+						}
+						newObject.printThing();
+						kitchenItems.add(newObject);
+					}
+				}
+				keyboard.nextLine();
+				getTaskTree(searchObject, kitchenItems);
 			}
 	
 
@@ -1440,6 +1497,125 @@ public class Main {
 
 		keyboard.close();
 		return;
+	}
+	
+	private static ArrayList<FunctionalUnit> explore(){
+		ArrayList<FunctionalUnit> tree = new ArrayList<FunctionalUnit>();        
+
+		return tree;
+	}
+	
+	private static void getTaskTree(Object O, HashSet<Object> L) throws Exception{
+		// Searching for task sequence to make a certain object O
+		//	-- we have a set of items found in the kitchen environment given in L
+		//	-- we should first find out if the node exists in FOON
+		int index = -1; 
+		// searching for the object in the FOON
+		for (Thing T : nodes) {
+			if (T instanceof Object && O.equals((Object)T)){
+				index = nodes.indexOf(T);
+			}
+		}
+
+		// checking to see if the item has been found in FOON
+		if (index == -1) {
+			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
+			return;
+		}
+		
+		// What structures do we need in record keeping?
+		//	-- a list of all nodes we need to search 
+		//	-- a list that maintains the order in which we search and backtrack
+		Stack<Object> itemsToSearch = new Stack<Object>();
+		HashSet<Object> itemsSeen = new HashSet<Object>();
+		HashSet<Object> kitchen = new HashSet<Object>();
+		
+		// -- Add the object we wish to search for to the two lists created above.
+		itemsToSearch.add((Object) nodes.get(index));
+		itemsSeen.add((Object) nodes.get(index));
+
+		// -- structure to keep track of all units in FOON
+		Stack<FunctionalUnit> FUtoSearch = new Stack<FunctionalUnit>(); // Queue structure needed for BFS
+		// We need to get all functional units needed to create the goal
+		ArrayList<FunctionalUnit> tree = new ArrayList<FunctionalUnit>();        
+
+		for (Object T : L){
+			itemsSeen.add(T);
+			index = -1;
+			for (Thing N : nodes) {
+				if (N instanceof Object && N.equals((Object)T)){
+					index = nodes.indexOf(N);
+				}
+			}
+			kitchen.add((Object)nodes.get(index));
+		}
+		
+		while(!itemsToSearch.isEmpty()) {
+			Object tempObject = (Object) itemsToSearch.pop(); // remove the item we are trying to make from the list        	
+			
+			if (kitchen.contains(tempObject)){
+				continue;
+			}
+			
+			System.out.println("Searching for " + tempObject.getObject() + "...");
+			
+			// -- searching for all functional units with our goal as output
+			int numProcedures = 0;
+			for (FunctionalUnit FU : FOON_containers){
+				int found = -1;
+				for (Thing N : FU.getOutputList()){
+					if (((Object)N).equals(tempObject)){
+						found = 0;
+					}
+				}
+				if (found == 0){
+					FUtoSearch.push(FU);
+					numProcedures++;	
+				}
+			}
+			
+			// -- currently we know how to get the entire tree needed for ALL possibilities..!
+			while (!FUtoSearch.isEmpty()){
+				FunctionalUnit tempFU = FUtoSearch.pop();
+				int count = 0; // keeping track of whether we have all items for a functional unit or not!
+				for (Thing T : tempFU.getInputList()){
+					if (!kitchen.contains((Object)T) && !itemsSeen.contains((Object)T)){
+						itemsToSearch.add((Object) T);
+					} 
+					else { 
+						count++;
+					}
+					itemsSeen.add((Object) T);
+				}
+				numProcedures--;
+				if (count == tempFU.getNumberOfInputs()){
+					// remove all functional units that can make an item - we take the first!
+					kitchen.add(tempObject);
+					itemsSeen.add(tempObject);
+					for (int x = 0; x < numProcedures; x++){
+						FUtoSearch.pop();
+					}
+					if (!tree.contains(tempFU))
+						tree.add(tempFU);
+				}
+				else {
+					// -- if a solution has not been found yet, add the object back to queue.
+					itemsToSearch.add(tempObject);
+				}				
+			}
+
+			// -- how can we use heuristics to find the SHORTEST path to making a certain item?
+
+		}
+	
+		// -- saving task tree sequence to file..		
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_task_tree.txt";
+		File outputFile = new File(fileName);
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+		for (FunctionalUnit FU : tree){
+			output.write((FU.getInputsForFile() + FU.getMotionForFile() + FU.getOutputsForFile() + "//\n"));
+		}		
+		output.close();
 	}
 
 	private static void searchForRecipe2(Object O) {
