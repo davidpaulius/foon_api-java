@@ -1498,14 +1498,19 @@ public class Main {
 		keyboard.close();
 		return;
 	}
-		
+	
+	private static ArrayList<FunctionalUnit> explore(){
+		ArrayList<FunctionalUnit> tree = new ArrayList<FunctionalUnit>();        
+
+		return tree;
+	}
+	
 	private static void getTaskTree(Object O, HashSet<Object> L) throws Exception{
 		// Searching for task sequence to make a certain object O
 		//	-- we have a set of items found in the kitchen environment given in L
 		//	-- we should first find out if the node exists in FOON
-		
-		// searching for the object in the FOON
 		int index = -1; 
+		// searching for the object in the FOON
 		for (Thing T : nodes) {
 			if (T instanceof Object && O.equals((Object)T)){
 				index = nodes.indexOf(T);
@@ -1519,11 +1524,10 @@ public class Main {
 		}
 		
 		// What structures do we need in record keeping?
-		//	-- a FIFO list of all nodes we need to search (a queue)
+		//	-- a list of all nodes we need to search 
+		//	-- a list that maintains the order in which we search and backtrack
 		Queue<Object> itemsToSearch = new LinkedList<Object>();
-		//	-- a list that keeps track of what we have seen
 		HashSet<Object> itemsSeen = new HashSet<Object>();
-		//	-- a list of all items we have/know how to make in the present case.
 		HashSet<Object> kitchen = new HashSet<Object>();
 		
 		// -- Add the object we wish to search for to the two lists created above.
@@ -1543,38 +1547,28 @@ public class Main {
 					index = nodes.indexOf(N);
 				}
 			}
-			if (index != -1) {
-				// This means that the object exists in FOON; if not..
-				kitchen.add((Object)nodes.get(index));
-			} else {
-				// .. we then need to find a substitute item in our environment.
-				// TODO: how do we find this substitute item?
-				
-			}
+			kitchen.add((Object)nodes.get(index));
 		}
 		
 		while(!itemsToSearch.isEmpty()) {
-			// -- Remove the item we are trying to make from the queue of items we need to learn how to make        	
-			Object tempObject = (Object) itemsToSearch.remove(); 
-	
+			Object tempObject = (Object) itemsToSearch.remove(); // remove the item we are trying to make from the list        	
+			
 			if (kitchen.contains(tempObject)){
-				// Just proceed to next iteration, as we already know how to make current item
 				continue;
 			}
 			
-			System.out.println("Searching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
+			System.out.println("Searching for " + tempObject.getObject() + "...");
 			
-			// We keep track of the total number of "ways" (functional units) of making a target node.
+			// -- searching for all functional units with our goal as output
 			int numProcedures = 0;
 			for (FunctionalUnit FU : FOON_containers){
-				// -- searching for all functional units with our goal as output
 				int found = -1;
 				for (Thing N : FU.getOutputList()){
 					if (((Object)N).equals(tempObject)){
-						found++;
+						found = 0;
 					}
 				}
-				if (found != -1){
+				if (found == 0){
 					FUtoSearch.push(FU);
 					numProcedures++;	
 				}
@@ -1583,31 +1577,25 @@ public class Main {
 			// -- currently we know how to get the entire tree needed for ALL possibilities..!
 			while (!FUtoSearch.isEmpty()){
 				FunctionalUnit tempFU = FUtoSearch.pop();
-				int count = 0; 
+				int count = 0; // keeping track of whether we have all items for a functional unit or not!
 				for (Thing T : tempFU.getInputList()){
 					if (!kitchen.contains((Object)T)){
-						// if an item is not in the "objects found" list, then we add it to the list of items
-						//	we then need to explore and find out how to make.
 						itemsToSearch.add((Object) T);
 					} 
 					else { 
-						// keeping track of whether we have all items for a functional unit or not!
 						count++;
 					}
 					//itemsSeen.add((Object) T);
 				}
 				numProcedures--;
 				if (count == tempFU.getNumberOfInputs()){
-					// We will have all items needed to make something;
-					//	add that item to the "kitchen", as we consider it already made.
+					// remove all functional units that can make an item - we take the first!
 					kitchen.add(tempObject);
 					itemsSeen.add(tempObject);
 					for (int x = 0; x < numProcedures; x++){
-						// remove all functional units that can make an item - we take the first!
 						FUtoSearch.pop();
 					}
 					if (!tree.contains(tempFU))
-						// ensuring that we do not repeat any units
 						tree.add(tempFU);
 				}
 				else {
