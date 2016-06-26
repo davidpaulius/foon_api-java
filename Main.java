@@ -1526,7 +1526,7 @@ public class Main {
 		// What structures do we need in record keeping?
 		//	-- a list of all nodes we need to search 
 		//	-- a list that maintains the order in which we search and backtrack
-		Stack<Object> itemsToSearch = new Stack<Object>();
+		Queue<Object> itemsToSearch = new LinkedList<Object>();
 		HashSet<Object> itemsSeen = new HashSet<Object>();
 		HashSet<Object> kitchen = new HashSet<Object>();
 		
@@ -1551,7 +1551,7 @@ public class Main {
 		}
 		
 		while(!itemsToSearch.isEmpty()) {
-			Object tempObject = (Object) itemsToSearch.pop(); // remove the item we are trying to make from the list        	
+			Object tempObject = (Object) itemsToSearch.remove(); // remove the item we are trying to make from the list        	
 			
 			if (kitchen.contains(tempObject)){
 				continue;
@@ -1579,13 +1579,13 @@ public class Main {
 				FunctionalUnit tempFU = FUtoSearch.pop();
 				int count = 0; // keeping track of whether we have all items for a functional unit or not!
 				for (Thing T : tempFU.getInputList()){
-					if (!kitchen.contains((Object)T) && !itemsSeen.contains((Object)T)){
+					if (!kitchen.contains((Object)T)){
 						itemsToSearch.add((Object) T);
 					} 
 					else { 
 						count++;
 					}
-					itemsSeen.add((Object) T);
+					//itemsSeen.add((Object) T);
 				}
 				numProcedures--;
 				if (count == tempFU.getNumberOfInputs()){
