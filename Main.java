@@ -84,6 +84,7 @@ public class Main {
 		chooser.setCurrentDirectory(new java.io.File("."));
 		chooser.setDialogTitle("FOON_analysis - Choose the main file to open:");
 		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
 
 		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 			System.out.println("Main network file selected : " + chooser.getSelectedFile());
@@ -402,6 +403,7 @@ public class Main {
 				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 				chooser.setDialogTitle("FOON_analysis - Choose directory with all files to merge:");
 				chooser.setAcceptAllFileFilterUsed(true);
+				chooser.setFileHidingEnabled(true);
 				
 				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 					System.out.println("Directory selected is : " + chooser.getSelectedFile());
@@ -481,15 +483,14 @@ public class Main {
 								newObject.setIngredient(Integer.parseInt(temp[1]));
 							}
 						}
-						newObject.printThing();
 						kitchenItems.add(newObject);
 					}
 				}
 				keyboard.nextLine();
 				getTaskTree(searchObject, kitchenItems);
+				file.close();
 			}
 	
-
 			else if (response.equals("7")){
 				printAllNodes();
 			}
@@ -511,7 +512,6 @@ public class Main {
 					T.printFunctionalUnitNoIngredients();
 				}
 			}
-			
 			
 			else if (response.equals("11")){		
 				for (FunctionalUnit T : FOON_containers){
@@ -561,24 +561,14 @@ public class Main {
 		return response;
 	}
 
-	private static int exploreNeighbours(int N){
-		Thing temp = oneModeObject.get(N);
-		int count = 0;
-		if (temp.countNeighbours() == 0){
-			return 0;
-		}
-		for (Thing T : temp.getNeigbourList()){
-			count = (count++) + exploreNeighbours(oneModeObject.indexOf(T));
-		}
-		return count;
-	}
-	
 	private static void populateLists() throws Exception {
 		// Opens a dialog that will be used for opening the network file:
 		JFileChooser chooser = new JFileChooser();
 		chooser.setCurrentDirectory(new java.io.File("."));
 		chooser.setDialogTitle("FOON_analysis - Choose the OBJECT index file:");
 		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
+
 		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 			System.out.println("Object Index found at location : " + chooser.getSelectedFile());
 		} else {
@@ -599,6 +589,8 @@ public class Main {
 		chooser.setCurrentDirectory(new java.io.File("."));
 		chooser.setDialogTitle("FOON_analysis - Choose the MOTION index file:");
 		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
+
 		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 			System.out.println("Motion Index found at location : " + chooser.getSelectedFile());
 		} else {
@@ -1435,70 +1427,7 @@ public class Main {
 		}	
 
 	}
-	
-	private static void searchForRecipe(Object O) {
-		Queue<Thing> itemsToSearch = new LinkedList<Thing>(); // Queue structure needed for BFS
-		int index = -1; 
-		// searching for the object in the FOON
-		for (Thing T : nodesReversed) {
-			if (T instanceof Object && O.equals((Object)T)){
-				index = nodesReversed.indexOf(T);
-			}
-		}
-
-		// checking to see if the item has been found in FOON
-		if (index == -1) {
-			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
-			return;
-		}
-
-		int start = index; //start at the goal node's index
-		boolean[] isVisited = new boolean[nodesReversed.size()]; // this is a structure to keep track of all visited nodes;
-		//  the values of the boolean array will be FALSE by default.
-		Scanner keyboard = new Scanner(System.in); // checking for user's input
-		String response = "";
-
-		itemsToSearch.add(nodesReversed.get(start));
-
-		while(!itemsToSearch.isEmpty()) {
-			Thing tempObject = itemsToSearch.remove(); // remove the item we are trying to make from the list        	
-			// Just a test for printing an appropriate message for each item!
-			if (tempObject.getNeigbourList().size() > 0) {
-				System.out.println("To get item O" + ((Object)tempObject).getObjectType() + "_S" + ((Object)tempObject).getObjectState() + ", you will need: ");
-			} else {
-				System.out.println("Item O" + ((Object)tempObject).getObjectType() + "_S" + ((Object)tempObject).getObjectState() + " cannot be reduced any further!");
-				System.out.println("You will need to acquire it somehow!");
-			}
-
-			int count = 0; // counter to list the ingredients needed to make a certain object
-
-			for (Thing M : tempObject.getNeigbourList()) {
-				for (Thing Ob : M.getNeigbourList()) {
-					for (Thing T : nodesReversed) {
-						if (T instanceof Object && ((Object)T).equals(Ob)){
-							index = nodesReversed.indexOf(T);
-						}
-					}
-					if (isVisited[index] == false) {
-						System.out.println("\t" + (++count) + ".	O" + ((Object)Ob).getObjectType() + "_S" + ((Object)Ob).getObjectState());
-						System.out.print("\t - Do you have object O" + ((Object)Ob).getObjectType() + "_S" + ((Object)Ob).getObjectState() + "[" + ((Object)Ob).getLabel() + " (" + ((Object)Ob).getStateLabel() + ")]? (Y/N) > ");
-						response = keyboard.nextLine();
-						if (response.equals("N")){
-							System.out.print("\t - now searching for how to make item ");
-							((Object)Ob).printObject();
-							itemsToSearch.add(Ob); // if we do not know how to make the item, then we need to backtrack further!
-						}
-						isVisited[index] = true;
-						System.out.println();
-					}
-				}
-			}
-		}
-
-		keyboard.close();
-		return;
-	}
-		
+			
 	private static void getTaskTree(Object O, HashSet<Object> L) throws Exception{
 		// Searching for task sequence to make a certain object O
 		//	-- we have a set of items found in the kitchen environment given in L
@@ -1526,6 +1455,9 @@ public class Main {
 		//	-- a list of all items we have/know how to make in the present case.
 		HashSet<Object> kitchen = new HashSet<Object>();
 		
+		// keeping track of what our goal originally was!
+		Object goalNode = (Object) nodes.get(index);
+		
 		// -- Add the object we wish to search for to the two lists created above.
 		itemsToSearch.add((Object) nodes.get(index));
 		itemsSeen.add((Object) nodes.get(index));
@@ -1539,7 +1471,7 @@ public class Main {
 			itemsSeen.add(T);
 			index = -1;
 			for (Thing N : nodes) {
-				if (N instanceof Object && N.equals((Object)T)){
+				if (N instanceof Object && T.equals((Object)N)){
 					index = nodes.indexOf(N);
 				}
 			}
@@ -1552,17 +1484,23 @@ public class Main {
 				
 			}
 		}
-		
+				
 		while(!itemsToSearch.isEmpty()) {
 			// -- Remove the item we are trying to make from the queue of items we need to learn how to make        	
 			Object tempObject = (Object) itemsToSearch.remove(); 
-	
+			
+			if (kitchen.contains(goalNode)){
+				// -- If we found the item already, why continue searching? (Base case)
+				//		therefore we break here!
+				break;
+			}
+						
 			if (kitchen.contains(tempObject)){
-				// Just proceed to next iteration, as we already know how to make current item
+				// Just proceed to next iteration, as we already know how to make current item!
 				continue;
 			}
 			
-			System.out.println("Searching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
+			System.out.println("\tSearching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
 			
 			// We keep track of the total number of "ways" (functional units) of making a target node.
 			int numProcedures = 0;
@@ -1626,11 +1564,93 @@ public class Main {
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 		for (FunctionalUnit FU : tree){
+			// just write all functional units that were put into the list 
 			output.write((FU.getInputsForFile() + FU.getMotionForFile() + FU.getOutputsForFile() + "//\n"));
-		}		
+		}
+		System.out.println(" -- Task tree sequence saved in " + fileName);
 		output.close();
 	}
 
+	// -- Previous versions of functions which never worked well.
+	
+	@SuppressWarnings("unused")
+	private static int exploreNeighbours(int N){
+		Thing temp = oneModeObject.get(N);
+		int count = 0;
+		if (temp.countNeighbours() == 0){
+			return 0;
+		}
+		for (Thing T : temp.getNeigbourList()){
+			count = (count++) + exploreNeighbours(oneModeObject.indexOf(T));
+		}
+		return count;
+	}
+	
+	@SuppressWarnings("unused")
+	private static void searchForRecipe(Object O) {
+		Queue<Thing> itemsToSearch = new LinkedList<Thing>(); // Queue structure needed for BFS
+		int index = -1; 
+		// searching for the object in the FOON
+		for (Thing T : nodesReversed) {
+			if (T instanceof Object && O.equals((Object)T)){
+				index = nodesReversed.indexOf(T);
+			}
+		}
+
+		// checking to see if the item has been found in FOON
+		if (index == -1) {
+			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
+			return;
+		}
+
+		int start = index; //start at the goal node's index
+		boolean[] isVisited = new boolean[nodesReversed.size()]; // this is a structure to keep track of all visited nodes;
+		//  the values of the boolean array will be FALSE by default.
+		Scanner keyboard = new Scanner(System.in); // checking for user's input
+		String response = "";
+
+		itemsToSearch.add(nodesReversed.get(start));
+
+		while(!itemsToSearch.isEmpty()) {
+			Thing tempObject = itemsToSearch.remove(); // remove the item we are trying to make from the list        	
+			// Just a test for printing an appropriate message for each item!
+			if (tempObject.getNeigbourList().size() > 0) {
+				System.out.println("To get item O" + ((Object)tempObject).getObjectType() + "_S" + ((Object)tempObject).getObjectState() + ", you will need: ");
+			} else {
+				System.out.println("Item O" + ((Object)tempObject).getObjectType() + "_S" + ((Object)tempObject).getObjectState() + " cannot be reduced any further!");
+				System.out.println("You will need to acquire it somehow!");
+			}
+
+			int count = 0; // counter to list the ingredients needed to make a certain object
+
+			for (Thing M : tempObject.getNeigbourList()) {
+				for (Thing Ob : M.getNeigbourList()) {
+					for (Thing T : nodesReversed) {
+						if (T instanceof Object && ((Object)T).equals(Ob)){
+							index = nodesReversed.indexOf(T);
+						}
+					}
+					if (isVisited[index] == false) {
+						System.out.println("\t" + (++count) + ".	O" + ((Object)Ob).getObjectType() + "_S" + ((Object)Ob).getObjectState());
+						System.out.print("\t - Do you have object O" + ((Object)Ob).getObjectType() + "_S" + ((Object)Ob).getObjectState() + "[" + ((Object)Ob).getLabel() + " (" + ((Object)Ob).getStateLabel() + ")]? (Y/N) > ");
+						response = keyboard.nextLine();
+						if (response.equals("N")){
+							System.out.print("\t - now searching for how to make item ");
+							((Object)Ob).printObject();
+							itemsToSearch.add(Ob); // if we do not know how to make the item, then we need to backtrack further!
+						}
+						isVisited[index] = true;
+						System.out.println();
+					}
+				}
+			}
+		}
+
+		keyboard.close();
+		return;
+	}
+	
+	@SuppressWarnings("unused")
 	private static void searchForRecipe2(Object O) {
 		Queue<Thing> itemsToSearch = new LinkedList<Thing>(); // Queue structure needed for BFS
 		int index = -1; 
