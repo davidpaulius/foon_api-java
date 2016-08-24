@@ -34,6 +34,7 @@ public class Main {
 	// -- ArrayList of objects and motions from parsing program
 	private static ArrayList<String> objectList;
 	private static ArrayList<String> motionList;
+	private static int[] objectsSeen;
 	
 	private static ArrayList<Thing> nodes, nodesReversed; // dynamic list of all objects/motions observed in file; keeps track of matrix rows and columns 
 	private static int totalNodes = 0; // total number of nodes that are in the network
@@ -64,6 +65,8 @@ public class Main {
 	// Testing stack for backtracking purposes
 	static Stack<Thing> backtrack, tempStack;
 
+	static Scanner keyboard;	
+	
 	public static void main(String[] args) throws Exception {
 		// Initialize the ArrayList objects
 		nodes = new ArrayList<Thing>();  
@@ -113,10 +116,15 @@ public class Main {
 		System.out.println("*********************************************************************************************");
 		
 		populateLists();
+		averageMotionTimes();
 
+		// -- list used to print the objects actually existent in FOON 
+		objectsSeen = new int[objectList.size()];
+		checkObjectsExist();
+		
 		// objects used for taking input from the console:
 		String response;
-		Scanner keyboard = new Scanner(System.in);
+		keyboard = new Scanner(System.in);
 
 		while (true){
 			response = printMenuOptions(keyboard);	
@@ -370,11 +378,12 @@ public class Main {
 			
 			else if (response.equals("3")){
 				// 	-- Count all nodes in the graph?
-				int count = 0;
+				int count = 0, total = 0;
 				for (Thing T : nodes) {
 					if (T instanceof Object){
 						count++;
 					}
+					total += T.countNeighbours();
 				}
 				System.out.println(count + " object nodes found in graph!");
 				count = 0;
@@ -382,8 +391,11 @@ public class Main {
 					if (T instanceof Motion){
 						count++;
 					}
+					
 				}
 				System.out.println(count + " motion nodes found in graph!");
+				System.out.println(total + " edges found in graph!");
+				
 			}
 	
 			else if (response.equals("4")){
@@ -560,7 +572,42 @@ public class Main {
 		String response = keyboard.nextLine();
 		return response;
 	}
+	
+	private static void averageMotionTimes() throws Exception {
+		double[] averages = new double[motionList.size()], frequency = new double[motionList.size()];
+		for (FunctionalUnit FU : FOON_containers) {
+			frequency[FU.getMotion().getType()]++;
+			averages[FU.getMotion().getType()] += FU.getDuration();
+		}
+	
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_average_times.txt";
+		File outputFile = new File(fileName);
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+		for (int x = 0; x < averages.length; x++) {
+			output.write("M_" + x + " :\t " + averages[x]/(frequency[x] * 1000) + " secs\n");
+		}
+		output.close();
+	}
 
+	private static void checkObjectsExist() throws Exception{
+		// Method which simply goes through all objects in FOON and marks those present from the object list
+		for (Thing T : oneModeObject){
+			objectsSeen[T.getType()]++;
+		}
+		
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_objects_exist.txt";
+		File outputFile = new File(fileName);
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+		
+		for (int x = 0; x < objectsSeen.length; x++) {
+			if (objectsSeen[x] > 0)
+				output.write(objectList.get(x)+"\n");
+		}
+		
+		System.out.println("File saved at " + fileName);	
+		output.close();
+	}
+	
 	private static void populateLists() throws Exception {
 		// Opens a dialog that will be used for opening the network file:
 		JFileChooser chooser = new JFileChooser();
@@ -576,7 +623,6 @@ public class Main {
 			return;
 		}
 						
-		@SuppressWarnings("resource")
 		Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
 		
 		while(file.hasNext()) {
@@ -595,6 +641,7 @@ public class Main {
 			System.out.println("Motion Index found at location : " + chooser.getSelectedFile());
 		} else {
 			System.err.println("Error in getting path of file!");
+			file.close();
 			return;
 		}
 						
@@ -605,6 +652,7 @@ public class Main {
 			String[] parts = line.split("\t");
 			motionList.add(parts[1]);
 		}
+		file.close();
 		System.out.println();
 	}
 
@@ -1165,11 +1213,13 @@ public class Main {
 				motionParts = motionParts[1].split("\t"); // get the Motion label
 
 				// create new Motion based on what was read
-				newMotion = new Motion(Integer.parseInt(motionParts[0]), motionParts[1]+"\t"+motionParts[2]+"\t"+motionParts[3]);
+				newMotion = new Motion(Integer.parseInt(motionParts[0]), motionParts[1]);
 				nodes.add(newMotion);
 				count++; // increment number of nodes by one since we are adding a new Motion node
 
 				newFU.setMotion(newMotion);
+				newFU.setTimes(motionParts[2], motionParts[3]);
+				
 				for (Thing T : newFU.getInputList()){
 					T.addConnection(newMotion); // make the connection from Object(s) to Motion
 				}
@@ -1381,7 +1431,6 @@ public class Main {
 		}	
 	}
 	
-
 	private static void addOneModeIngredients(FunctionalUnit newFU){
 		ArrayList<Thing> tempList = new ArrayList<Thing>();
 		// creating one-mode projection: take the input first and then the output nodes.
@@ -1444,6 +1493,8 @@ public class Main {
 		// checking to see if the item has been found in FOON
 		if (index == -1) {
 			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
+			System.out.println("Finding the closest object..");
+			doLevel1Search(O);
 			return;
 		}
 		
@@ -1571,7 +1622,174 @@ public class Main {
 		output.close();
 	}
 
-	// -- Previous versions of functions which never worked well.
+	private static void doLevel1Search(Object O) throws Exception {
+		// LEVEL ONE: 
+		
+		// We need to store the similarities found from the Python script:
+		//	-- using a HashTable-like object for convenient storage/retrieval of information
+		//	-- using another List-like object for sorting the similarity values
+		HashMap<Double, String> similarity = new HashMap<Double, String>();
+		ArrayList<Double> sorted = new ArrayList<Double>();
+		
+		// User needs to complete the semantic similarity calculation first!
+		System.out.print("Use the calculate_similarity.py script to find the nearest objects, then press ENTER.");
+		keyboard.nextLine();
+
+		// Opens a dialog that will be used for opening the similarity output file:
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("."));
+		chooser.setDialogTitle("FOON_analysis - Choose the OUTPUT file from calculate_similarity.py script:");
+		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
+
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			System.out.println("File selected in location : " + chooser.getSelectedFile());
+		} else {
+			System.err.println("Error in getting path of file!");
+			return;
+		}
+		
+		// Opening the file..
+		Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
+		// ..and parsing through the file.
+		while(file.hasNext()) {
+			String line = file.nextLine();
+			String[] parts = line.split("\t");
+			// -- adding everything from the script output file to a HashTable
+			similarity.put(Double.valueOf(parts[1]),parts[0]);
+			sorted.add(Double.valueOf(parts[1]));
+		}
+		file.close();
+		
+		System.out.println(" -- Sorting similarity values..");
+		
+		// We then proceed to sorting all the values from high to low:
+		Collections.sort(sorted, Collections.reverseOrder());
+		
+		for (double value : sorted){
+			// -- if a similarity value is below some threshold, then we can assume that the object 
+			//		is not similar enough to be used as a reference.
+			if (value < 0.75){
+				break;
+			}
+			
+			// - finding the object associated with a given value 
+			String tempObjectName = similarity.get(value);
+			Object tempObject = new Object(objectList.indexOf(tempObjectName), O.getObjectState());
+			
+			// -- checking to see whether the similar object exists in FOON or not 
+			int index = -1;
+			for (Thing T : nodes) {
+				if (T instanceof Object && tempObject.equals((Object)T)){
+					index = nodes.indexOf(T);
+				}
+			}
+			if (index == -1){
+				// -- just move to the next closest object..
+				System.out.println(" -- Object " + tempObjectName + " does not exist in FOON..");
+				continue;
+			}
+			else {
+				// -- in this case, we can look for the functional units that produce that
+				//		specific object and "copy" it.
+				
+				// -- to prevent an Exception from adding new FUs while iterating through them all,
+				//		we add the new units to a temporary list
+				List<FunctionalUnit> FUtoAdd = new ArrayList<FunctionalUnit>();
+				for (FunctionalUnit FU : FOON_containers){
+					if (FU.getOutputList().contains(nodes.get(index))){
+						// - first, create a blank functional unit instance...
+						FunctionalUnit tempFU = new FunctionalUnit();
+						// - then, copy the output list; remove the object of question, but add the item we don't know how to make.
+						int count = 0, copied = -1;
+						for (Thing T : FU.getOutputList()){
+							if (!((Object)T).equals(nodes.get(index))){
+								// -- add object elements to the new functional unit since copies are just references!
+								tempFU.addObjectNode(T, FunctionalUnit.nodeType.Output, FU.getOutputDescriptor().get(count));
+							} else {
+								// -- take note of the motion descriptor of the object that is found to be similar
+								copied = FU.getOutputDescriptor().get(count);
+							}
+							count++;
+						}
+						// -- this object now exists in FOON, so we add it to list of all nodes
+						tempFU.addObjectNode(O, FunctionalUnit.nodeType.Output, copied);
+						O.setObjectLabel(objectList.get(O.getObjectType()));
+						O.setStateLabel(((Object)nodes.get(index)).getStateLabel());
+						nodes.add(O);
+
+						// -- copying the same motion node, but we need to create a new instance of the motion
+						Motion tempMotion = new Motion(FU.getMotion().getType(), FU.getMotion().getLabel());
+						nodes.add(tempMotion);
+						tempFU.setMotion(tempMotion);
+
+						// -- we can copy the times (for now), assuming it will take the same amount of time to finish..
+						tempFU.setTimes(FU.getStartTime(), FU.getEndTime());
+			
+						//  -- finally, we copy the elements from the input object list.
+						int tempState = -1; count = 0;
+						String initial = "";
+						for (Thing T : FU.getInputList()){
+							// -- this should only happen for one instance, unless we are dealing with multiple instances 
+							//		of a single object in one action.
+							if (!(T.equals(nodes.get(index)))){
+								tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getOutputDescriptor().get(count));
+							}
+							else {
+								// .. but we need to note the state of the object.
+								tempState = ((Object)T).getObjectState();
+								copied = FU.getInputDescriptor().get(count);
+								initial = ((Object)T).getStateLabel();
+							}
+							count++;
+						}
+						// -- create a new object and add it to the list of all nodes
+						Object initialState = new Object(O.getObjectType(), tempState);
+						initialState.setObjectLabel(O.getObjectLabel());
+						initialState.setStateLabel(initial);
+						tempFU.addObjectNode(initialState, FunctionalUnit.nodeType.Input, copied);
+						
+						// -- this object now exists in FOON, so we add it to list of all nodes
+						nodes.add(initialState);
+						
+						// -- finally, we add this functional unit to the list of all units.
+						FUtoAdd.add(tempFU);
+					}
+				}
+				
+				// -- add all new functional units to universal FOON
+				for (FunctionalUnit FU : FUtoAdd){
+					FOON_containers.add(FU);
+				}
+
+				// -- display to ensure all the functional units are added and correct
+				//for (FunctionalUnit FU : FOON_containers){
+				//	FU.printFunctionalUnit();
+				//	System.out.println("//");
+				//}
+				
+				// -- now that we have added new functional units, we should then add them to the file!
+				outputMergedGraph(filePath);
+
+				System.out.println("Functional units with similar object usage have been added!");
+				System.out.println("Repeat the search if possible.");
+				return;
+			}
+		}
+	}
+	
+	@SuppressWarnings("unused")
+	private static void doLevel2Search(Object O){
+		// LEVEL TWO: we have instance of object in secondary state, but we have no idea how to go to primary state
+	}
+	
+	
+	@SuppressWarnings("unused")
+	private static void doLevel3Search(Object O){
+		// LEVEL THREE: Objects never ever seen in FOON.. no instance of object
+	}
+	
+	// -- Previous versions of functions which never worked well..
 	
 	@SuppressWarnings("unused")
 	private static int exploreNeighbours(int N){

@@ -124,7 +124,7 @@ class Object extends Thing {
     public Object(int n, int S, String M, String L){
     	super(n); 
     	objState = S;
-        setLabel(M);
+        setObjectLabel(M);
         setStateLabel(L);
         contained = new ArrayList<Integer>();
         numIngredients = 0;
@@ -135,7 +135,9 @@ class Object extends Thing {
     	objState = S;
     }
     
-    public Object(){};
+    public Object(){
+       	// empty constructor just for the option of creating empty Object.
+    }
     
     public boolean equals(Object O){
     	return (O.getObjectType() == this.getObjectType() && O.getObjectState() == this.getObjectState()); 
@@ -211,6 +213,10 @@ class Object extends Thing {
     	objState = S;
     }
 
+    public void setObjectLabel(String S){
+    	setLabel(S);
+    }
+    
     public void setStateLabel(String S){
     	stateLabel = S;
     }
@@ -249,14 +255,13 @@ class Motion extends Thing {
         super(n);       
         this.setLabel(L);
     }
-
 	
 	public int getMotionType(){
         return getType();
     }
 
 	public void printMotion(){
-		System.out.println("M"+this.getMotionType()+"\t"+this.getLabel()+"");
+		System.out.print("M"+this.getMotionType()+"\t"+this.getLabel()+"");
 	}
 	
 	public String getMotion(){
