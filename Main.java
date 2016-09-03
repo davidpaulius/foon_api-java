@@ -185,7 +185,7 @@ public class Main {
 				oneModeObjectMatrix = new double[oneModeObject.size()][oneModeObject.size()];		
 				oneModeObjectIngredientsMatrix = new double[oneModeObjectIngredients.size()][oneModeObjectIngredients.size()];
 				populateAdjacencyMatrix(); // populate the structures created above
-				System.out.println(oneModeObjectIngredients.size() + " " + oneModeObjectAbstract.size() + " " + oneModeObject.size());
+				System.out.println(" -- Size of ingredient list: " + oneModeObjectIngredients.size() + "\n -- Size of no-state list: " +  + oneModeObjectAbstract.size() + "\n -- Size of regular objects list: " + oneModeObject.size());
 				System.out.print(" -> Analysis with/without states/with ingredients? [1/2/3] > ");
 				response = keyboard.nextLine();
 				if (response.equals("1")){
@@ -492,7 +492,7 @@ public class Main {
 							ingredients = ingredients[0].split(",");
 							for (String I : ingredients){
 								temp = I.split("O");
-								newObject.setIngredient(Integer.parseInt(temp[1]));
+								newObject.setIngredient((temp[1]));
 							}
 						}
 						kitchenItems.add(newObject);
@@ -592,6 +592,7 @@ public class Main {
 	private static void checkObjectsExist() throws Exception{
 		// Method which simply goes through all objects in FOON and marks those present from the object list
 		for (Thing T : oneModeObject){
+			T.printThing();
 			objectsSeen[T.getType()]++;
 		}
 		
@@ -1174,10 +1175,11 @@ public class Main {
 					String [] ingredients = { stateParts[2] }, temp;
 					ingredients = ingredients[0].split("\\{");
 					ingredients = ingredients[1].split("\\}");
-					ingredients = ingredients[0].split(",");
-					for (String I : ingredients){
-						temp = I.split("O");
-						newObject.setIngredient(Integer.parseInt(temp[1]));
+					if (ingredients.length > 0){
+						ingredients = ingredients[0].split(",");
+						for (String I : ingredients){
+							newObject.setIngredient(I);
+						}
 					}
 				}
 				// checking if Object node exists in the list of objects
@@ -1667,8 +1669,8 @@ public class Main {
 		Collections.sort(sorted, Collections.reverseOrder());
 		
 		for (double value : sorted){
-			// -- if a similarity value is below some threshold, then we can assume that the object 
-			//		is not similar enough to be used as a reference.
+			// -- if a similarity value is below some threshold, then we can assume that 
+			//		the object is not similar enough to be used as a reference.
 			if (value < 0.75){
 				break;
 			}
@@ -1776,6 +1778,16 @@ public class Main {
 				return;
 			}
 		}
+	}
+	
+	private static void expandNetwork(){
+		// -- This function should go through all possible objects (types and states) and expand the network
+		//		based on all of those possibilities.
+		
+		// -- PAPER: Function should demonstrate the power in expanding the network.
+		
+	
+		return;
 	}
 	
 	@SuppressWarnings("unused")

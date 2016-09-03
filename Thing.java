@@ -117,7 +117,7 @@ class Object extends Thing {
     private String stateLabel;
     // Objects can also be containers of other objects, so a list is maintained for each object 
     //	which can point to other objects.
-    private List<Integer> contained;
+    private List<String> contained;
     private int numIngredients;
 
     // constructor method for an Object object (lol)
@@ -126,7 +126,7 @@ class Object extends Thing {
     	objState = S;
         setObjectLabel(M);
         setStateLabel(L);
-        contained = new ArrayList<Integer>();
+        contained = new ArrayList<String>();
         numIngredients = 0;
     }
     
@@ -149,7 +149,7 @@ class Object extends Thing {
     
     public boolean isSameIngredients(Object O){
     	int count = 0;
-    	for (int I : O.contained){
+    	for (String I : O.contained){
     		if (this.contained.contains(I)){
     			count++;
     		}
@@ -200,11 +200,11 @@ class Object extends Thing {
     	setType(T);
     }
     
-    public List<Integer> getIngredientsList(){
+    public List<String> getIngredientsList(){
     	return contained;
     }
     
-    public void setIngredientsList(List<Integer> L){
+    public void setIngredientsList(List<String> L){
     	contained = L;
     	numIngredients = contained.size();
     }
@@ -221,7 +221,7 @@ class Object extends Thing {
     	stateLabel = S;
     }
     
-    public void setIngredient(int O){
+    public void setIngredient(String O){
     	contained.add(O);
     	numIngredients++;
     }
@@ -233,7 +233,7 @@ class Object extends Thing {
     	}
     	result += "{";
     	for (int count = 0; count < numIngredients; count++){
-			result += "O" + contained.get(count);
+			result += contained.get(count);
 			if (count < numIngredients - 1){
 				result += ",";
 			}

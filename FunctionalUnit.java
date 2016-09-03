@@ -187,13 +187,13 @@ public class FunctionalUnit {
 		}
 		// print the Motion node
 		((Motion)motionNode).printMotion();
-		System.out.println("\t" + startTime + "\t" +endTime);
+		System.out.println("\t" + startTime + "\t" + endTime);
 		// print all output Object nodes
 		count = 0;
 		for (Thing T: outputNodes){
 			System.out.print("O" + ((Object)T).getObjectType() + "\t" + ((Object)T).getObjectLabel());
 			System.out.println("\t" + outDescriptor.get(count++));
-			System.out.println("S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + ((Object)T).getIngredients());
+			System.out.println("S" + ((Object)T).getObjectState() + "\t" + ((Object)T).getStateLabel() + "\t" + ((Object)T).getIngredients());
 		}
 	}
 	
@@ -206,7 +206,7 @@ public class FunctionalUnit {
 		}
 		// print the Motion node
 		((Motion)motionNode).printMotion();
-		System.out.println(startTime+"\t"+endTime);
+		System.out.println("\t" + startTime + "\t" + endTime);
 		// print all output Object nodes
 		count = 0;
 		for (Thing T: outputNodes){
