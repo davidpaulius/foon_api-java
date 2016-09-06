@@ -133,6 +133,8 @@ class Object extends Thing {
     public Object(int n, int S){
     	super(n); 
     	objState = S;
+        contained = new ArrayList<String>();
+        numIngredients = 0;
     }
     
     public Object(){
@@ -149,6 +151,10 @@ class Object extends Thing {
     
     public boolean isSameIngredients(Object O){
     	int count = 0;
+    	//this.printObject();
+    	//System.out.println(this.contained.size());
+    	//O.printObject();
+    	//System.out.println(O.contained.size());
     	for (String I : O.contained){
     		if (this.contained.contains(I)){
     			count++;

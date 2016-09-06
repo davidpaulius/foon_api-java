@@ -34,6 +34,7 @@ public class Main {
 	// -- ArrayList of objects and motions from parsing program
 	private static ArrayList<String> objectList;
 	private static ArrayList<String> motionList;
+	private static ArrayList<String> stateList;
 	private static int[] objectsSeen;
 	
 	private static ArrayList<Thing> nodes, nodesReversed; // dynamic list of all objects/motions observed in file; keeps track of matrix rows and columns 
@@ -109,6 +110,7 @@ public class Main {
 		//}
 
 		objectList = new ArrayList<String>();
+		stateList = new ArrayList<String>();
 		motionList = new ArrayList<String>();
 
 		System.out.println("\n*********************************************************************************************");
@@ -185,7 +187,6 @@ public class Main {
 				oneModeObjectMatrix = new double[oneModeObject.size()][oneModeObject.size()];		
 				oneModeObjectIngredientsMatrix = new double[oneModeObjectIngredients.size()][oneModeObjectIngredients.size()];
 				populateAdjacencyMatrix(); // populate the structures created above
-				System.out.println(" -- Size of ingredient list: " + oneModeObjectIngredients.size() + "\n -- Size of no-state list: " +  + oneModeObjectAbstract.size() + "\n -- Size of regular objects list: " + oneModeObject.size());
 				System.out.print(" -> Analysis with/without states/with ingredients? [1/2/3] > ");
 				response = keyboard.nextLine();
 				if (response.equals("1")){
@@ -213,7 +214,7 @@ public class Main {
 						if (D > ans.toArray()[maxIndex]) {
 							maxIndex = count;
 						}
-						System.out.println("O" + oneModeObjectAbstract.get(count).getType() + "S" + ((Object)oneModeObjectAbstract.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
+						//System.out.println("O" + oneModeObjectAbstract.get(count).getType() + "S" + ((Object)oneModeObjectAbstract.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
 					}
 					System.out.print("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it -> \n");
 					oneModeObjectAbstract.get(maxIndex).printThing();
@@ -277,7 +278,7 @@ public class Main {
 						if (D > ans.toArray()[maxIndex]) {
 							maxIndex = count;
 						}
-						System.out.println("O" + oneModeObject.get(count++).getType() + "\t" + String.format("%.5f ", (D)));
+						//System.out.println("O" + oneModeObject.get(count++).getType() + "\t" + String.format("%.5f ", (D)));
 					}
 					System.out.println("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it ->");
 					oneModeObject.get(maxIndex).printThing();
@@ -338,7 +339,7 @@ public class Main {
 						if (D > ans.toArray()[maxIndex]) {
 							maxIndex = count;
 						}
-						System.out.println("O" + oneModeObjectIngredients.get(count).getType() + "S" + ((Object)oneModeObjectIngredients.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
+						//System.out.println("O" + oneModeObjectIngredients.get(count).getType() + "S" + ((Object)oneModeObjectIngredients.get(count++)).getObjectState() + "\t" + String.format("%.5f ", (D)));
 					}
 					System.out.println("\nKATZ: Node " + (maxIndex+1) + " has the largest centrality value associated with it ->");
 					oneModeObjectIngredients.get(maxIndex).printThing();
@@ -377,24 +378,30 @@ public class Main {
 			}
 			
 			else if (response.equals("3")){
+				System.out.println("BIPARTITE FOON:");
+				System.out.println(totalNodes + " nodes found in entire graph!");
 				// 	-- Count all nodes in the graph?
-				int count = 0, total = 0;
+				int objectCount = 0, motionCount = 0, edgeCount = 0;
 				for (Thing T : nodes) {
 					if (T instanceof Object){
-						count++;
+						objectCount++;
+					} else {
+						motionCount++;
 					}
-					total += T.countNeighbours();
+					// we are iterating through all nodes, so why not just save time?
+					//	-- counting the number of outgoing edges for each node.
+					edgeCount += T.countNeighbours();
 				}
-				System.out.println(count + " object nodes found in graph!");
-				count = 0;
-				for (Thing T : nodes) {
-					if (T instanceof Motion){
-						count++;
-					}
-					
-				}
-				System.out.println(count + " motion nodes found in graph!");
-				System.out.println(total + " edges found in graph!");
+				System.out.println(" -> Number of object nodes: " + objectCount);
+				System.out.println(" -> Number of motion nodes: " + motionCount);
+				System.out.println(" -> Total number of nodes: " + nodes.size());
+				System.out.println(" -> Total number of edges in network: " + edgeCount);
+				
+				System.out.println("\nONE-MODE PROJECTED FOON:");
+				System.out.println(" -> Size of object-motion-content list: " + oneModeObjectIngredients.size() 
+						+ "\n -> Size of no-state list: " +  + oneModeObjectAbstract.size() 
+						+ "\n -> Size of object-state list: " + oneModeObject.size());
+
 				
 			}
 	
@@ -516,6 +523,8 @@ public class Main {
 				System.out.println("\n~\n");
 				printAllOneModeNodesNoState();
 				System.out.println("\n~\n");
+				printAllOneModeNodesIngredients();
+				System.out.println("\n~\n");
 				outputGraphDegree(filePath);
 			}
 	
@@ -529,6 +538,10 @@ public class Main {
 				for (FunctionalUnit T : FOON_containers){
 					T.printFunctionalUnit();
 				}
+			}
+			
+			else if (response.equals("12")){
+				expandNetwork();
 			}
 			
 			else break;
@@ -566,6 +579,7 @@ public class Main {
 		System.out.println("\t9.	Print objects as one-mode projected graph?");
 		System.out.println("\t10.	Print all functional units (not considering ingredients)?");
 		System.out.println("\t11.	Print all functional units (considering ingredients)?");
+		System.out.println("\t12.	Expand FOON network by similarity measures?");
 		System.out.println("(Press any other key and ENTER to exit)");
 		System.out.print("\nPlease enter your response here: > ");
 
@@ -653,6 +667,29 @@ public class Main {
 			String[] parts = line.split("\t");
 			motionList.add(parts[1]);
 		}
+		
+		chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("."));
+		chooser.setDialogTitle("FOON_analysis - Choose the STATE index file:");
+		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
+
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			System.out.println("State Index found at location : " + chooser.getSelectedFile());
+		} else {
+			System.err.println("Error in getting path of file!");
+			file.close();
+			return;
+		}
+						
+		file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
+		
+		while(file.hasNext()) {
+			String line = file.nextLine();
+			String[] parts = line.split("\t");
+			stateList.add(parts[1]);
+		}
+
 		file.close();
 		System.out.println();
 	}
@@ -855,7 +892,7 @@ public class Main {
 		}
 	}
 
-	private static void printAllOneModeNodes(){
+	private static void printAllOneModeNodesNoState(){
 		System.out.println(oneModeObjectAbstract.size() + " nodes found in graph!");
 		int count = 0;
 		for (Thing n : oneModeObjectAbstract) {
@@ -868,7 +905,7 @@ public class Main {
 		}
 	}
 
-	private static void printAllOneModeNodesNoState(){
+	private static void printAllOneModeNodes(){
 		System.out.println(oneModeObject.size() + " nodes found in graph!");
 		int count = 0;
 		for (Thing n : oneModeObject) {
@@ -880,6 +917,20 @@ public class Main {
 			n.printNeighbours();
 		}
 	}
+	
+	private static void printAllOneModeNodesIngredients(){
+		System.out.println(oneModeObjectIngredients.size() + " nodes found in graph!");
+		int count = 0;
+		for (Thing n : oneModeObjectIngredients) {
+			System.out.print("node "+ (++count) +" : ");
+			// all of these nodes will be purely objects! No need to test.
+			n.printThing(); 
+			// Display the number of degrees for each node, which are the number of neighbours
+			System.out.println("Number of degrees: " + n.countNeighbours());
+			n.printNeighbours();
+		}
+	}
+
 
 	private static void populateAdjacencyMatrix() {
 		for (int x = 0; x < oneModeObjectAbstract.size(); x++) {
@@ -1104,7 +1155,7 @@ public class Main {
 			for(FunctionalUnit F : FOON_containers){
 				if (F.equalsWithIngredients(U)){
 					System.out.println("Functional unit (with containers) already exists in FOON!");
-					U.printFunctionalUnit();
+					//U.printFunctionalUnit();
 					return true;
 				}
 			}
@@ -1127,36 +1178,45 @@ public class Main {
 	}
 
 	private static int constructFUGraph(Scanner readFile) throws Exception {
-		int count = totalNodes; // we have an idea of how many objects may be in the graph by the number of lines
+		int count = totalNodes; // 'totalNodes' gives an indication of the number of object AND motion nodes are in FOON.
 		String[] stateParts, objectParts, motionParts; // objects used to contain the split strings
 
-		// Temporary objects to hold a new object/motion
-		Object newObject; Motion newMotion; 
+		Object newObject; Motion newMotion; // Temporary objects to hold a new object/motion
 		int objectIndex = -1; // variables to hold position of object/motion within list of Things				
 		boolean isInput = true;
 
-		FunctionalUnit newFU = new FunctionalUnit(); // this is to hold reverse edges
+		FunctionalUnit newFU = new FunctionalUnit(); // object which will hold the functional unit being read.
 
 		while (readFile.hasNext()) {
 			String line = readFile.nextLine();
 			int objectExisting = -1;
 			if (line.startsWith("//")) {
-				// we are adding a new FU, so start from scratch
+				// we are adding a new FU, so start from scratch..
 				if (!FUExists(newFU,1)){
-					FOON.add(newFU); // only add the Functional Unit if it is not in the list
+					// only add the Functional Unit if it is not in the list
+					FOON.add(newFU); 
 					// if this functional unit does not exist, then the reverse should not exist either!
 					makeReverseFU(newFU);
+					
+					// We can then proceed to adding object nodes to a compressed one-mode projection of FOON.
 					addOneModeProjection(newFU);
 					addOneModeAbstract(newFU);
-					addOneModeIngredients(newFU);
-				}				
+					addOneModeIngredients(newFU);	
+				}							
 				if (!FUExists(newFU,-1)){
-					FOON_containers.add(newFU); // only add the Functional Unit if it is not in the list
+					// only add the Functional Unit if it is not in the list
+					FOON_containers.add(newFU);
 					// if this functional unit does not exist, then the reverse should not exist either!
 					makeReverseFU_Container(newFU);
+					
+					// We can then proceed to adding object nodes to a compressed one-mode projection of FOON.
+					addOneModeProjection(newFU);
+					addOneModeAbstract(newFU);
+					addOneModeIngredients(newFU);	
 				}
-				newFU = new FunctionalUnit(); // create an entirely new FU
-				isInput = true; // this is the end of a FU so we will now be adding input nodes
+
+				newFU = new FunctionalUnit(); // create an entirely new FU object to proceed with reading new units.
+				isInput = true; // this is the end of a FU so we will now be adding input nodes; set flag to TRUE.
 			} else if (line.startsWith("O")) {
 				// this is an Object node, so we probably should read the next line one time
 				objectParts = line.split("O", 2); // get the Object identifier by splitting first instance of O
@@ -1172,9 +1232,10 @@ public class Main {
 
 				// checking if this object is a container:
 				if (stateParts.length > 2){
-					String [] ingredients = { stateParts[2] }, temp;
+					String [] ingredients = { stateParts[2] };
 					ingredients = ingredients[0].split("\\{");
 					ingredients = ingredients[1].split("\\}");
+					// we then need to make sure that there are ingredients to be read.
 					if (ingredients.length > 0){
 						ingredients = ingredients[0].split(",");
 						for (String I : ingredients){
@@ -1207,16 +1268,16 @@ public class Main {
 					newFU.addObjectNode(nodes.get(objectIndex), FunctionalUnit.nodeType.Output, Integer.parseInt(objectParts[2]));
 					newFU.getMotion().addConnection(newObject); // make the connection from Motion to Object
 				}
-
+				
 			} else {
 				// We are adding a Motion node, so very easy to deal with
 				isInput = false;
 				motionParts = line.split("M", 2); // get the Motion number
 				motionParts = motionParts[1].split("\t"); // get the Motion label
 
-				// create new Motion based on what was read
+				// create new Motion based on what was read.
 				newMotion = new Motion(Integer.parseInt(motionParts[0]), motionParts[1]);
-				nodes.add(newMotion);
+				nodes.add(newMotion);	// no matter what, we add new motion nodes; we will have multiple instances everywhere.
 				count++; // increment number of nodes by one since we are adding a new Motion node
 
 				newFU.setMotion(newMotion);
@@ -1227,7 +1288,10 @@ public class Main {
 				}
 			}
 		}
+		
+		// Don't forget to close the file once we are done!
 		readFile.close();
+
 		return count;
 	}
 	
@@ -1735,7 +1799,7 @@ public class Main {
 							// -- this should only happen for one instance, unless we are dealing with multiple instances 
 							//		of a single object in one action.
 							if (!(T.equals(nodes.get(index)))){
-								tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getOutputDescriptor().get(count));
+								tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getInputDescriptor().get(count));
 							}
 							else {
 								// .. but we need to note the state of the object.
@@ -1780,14 +1844,194 @@ public class Main {
 		}
 	}
 	
-	private static void expandNetwork(){
+	private static void expandNetwork() throws Exception{
 		// -- This function should go through all possible objects (types and states) and expand the network
 		//		based on all of those possibilities.
 		
 		// -- PAPER: Function should demonstrate the power in expanding the network.
+
+		// Create file explorer dialog to select the directory
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("."));
+		chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		chooser.setDialogTitle("FOON_analysis - Choose directory with all similarity files:");
+		chooser.setAcceptAllFileFilterUsed(true);
+		chooser.setFileHidingEnabled(true);
 		
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			System.out.println("Directory selected is : " + chooser.getSelectedFile());
+		} else {
+			System.err.println("Error in getting path of directory!");
+			keyboard.close();
+			return;
+		}
+
+		// -- Get the list of files within the similarity folder.
+		File directory = chooser.getSelectedFile();
+		File[] listOfFiles = directory.listFiles();
+
+		for (File F : listOfFiles){
+
+			HashMap<Double, String> similarity = new HashMap<Double, String>();
+			ArrayList<Double> sorted = new ArrayList<Double>();
+			System.out.println(F.getName());
+			
+			if (!F.getName().startsWith("FOON_similarity")){
+				continue;
+			}
+			
+			String[] ingredients = { F.getName() };
+			ingredients = ingredients[0].split("\\_");
+			ingredients = ingredients[3].split("\\.");
+
+			System.out.println(" -- Finding all objects similar to " + ingredients[0] + "..");
+			
+			Scanner file = new Scanner(F);
+			while(file.hasNext()) {
+				String line = file.nextLine();
+				String[] parts = line.split("\t");
+				// -- adding everything from the script output file to a HashTable
+				similarity.put(Double.valueOf(parts[1]),parts[0]);
+				sorted.add(Double.valueOf(parts[1]));
+			}
+			file.close();
+			
+			// We then proceed to sorting all the values from high to low:
+			Collections.sort(sorted, Collections.reverseOrder());
+			
+			for (double value : sorted){
+				// -- if a similarity value is below some threshold, then we can assume that 
+				//		the object is not similar enough to be used as a reference.
+				if (value < 0.7){
+					break;
+				}
+				
+				String tempObjectName = similarity.get(value);
+				
+				// -- if the object is being compared to itself, just skip it.
+				if (tempObjectName == ingredients[0]){
+					continue;
+				}
+				
+				for (int x = 0; x < stateList.size(); x++){
+			
+					// -- creating a temporary object that should be similar to the object in question.
+					Object O = new Object(objectList.indexOf(ingredients[0]), x);
+					
+					// - finding the object associated with a given value 
+					Object tempObject = new Object(objectList.indexOf(tempObjectName), x);
+					
+					// -- checking to see whether the similar object exists in FOON or not 
+					int index = -1;
+					for (Thing T : nodes) {
+						if (T instanceof Object && tempObject.equals((Object)T)){
+							index = nodes.indexOf(T);
+						}
+					}
+					if (index == -1){
+						// -- just move to the next closest object..
+						//System.out.println(" -- Object " + tempObjectName + " (" + stateList.get(x)  + ") does not exist in FOON..");
+						continue;
+					}
+					else {
+						// -- in this case, we can look for the functional units that produce that
+						//		specific object and "copy" it.
+						
+						// -- to prevent an Exception from adding new FUs while iterating through them all,
+						//		we add the new units to a temporary list
+						List<FunctionalUnit> FUtoAdd = new ArrayList<FunctionalUnit>();
+						for (FunctionalUnit FU : FOON_containers){
+							if (FU.getOutputList().contains(nodes.get(index))){
+								// - first, create a blank functional unit instance...
+								FunctionalUnit tempFU = new FunctionalUnit();
+								// - then, copy the output list; remove the object of question, but add the item we don't know how to make.
+								int count = 0, copied = -1;
+								for (Thing T : FU.getOutputList()){
+									if (!((Object)T).equals(nodes.get(index))){
+										// -- add object elements to the new functional unit since copies are just references!
+										tempFU.addObjectNode(T, FunctionalUnit.nodeType.Output, FU.getOutputDescriptor().get(count));
+									} else {
+										// -- take note of the motion descriptor of the object that is found to be similar
+										copied = FU.getOutputDescriptor().get(count);
+									}
+									count++;
+								}
+								// -- this object now exists in FOON, so we add it to list of all nodes
+								tempFU.addObjectNode(O, FunctionalUnit.nodeType.Output, copied);
+								O.setObjectLabel(objectList.get(O.getObjectType()));
+								O.setStateLabel(((Object)nodes.get(index)).getStateLabel());
+
+								// TODO: what do we do about the ingredients?
+								//for (String S : ((Object)nodes.get(index)).getIngredientsList()){
+								//	if (!S.equals(tempObjectName)){
+								//		O.setIngredient(S);
+								//	}
+								//}
+								nodes.add(O);
 	
-		return;
+								// -- copying the same motion node, but we need to create a new instance of the motion
+								Motion tempMotion = new Motion(FU.getMotion().getType(), FU.getMotion().getLabel());
+								nodes.add(tempMotion);
+								tempFU.setMotion(tempMotion);
+	
+								// -- we can copy the times (for now), assuming it will take the same amount of time to finish..
+								tempFU.setTimes(FU.getStartTime(), FU.getEndTime());
+					
+								//  -- finally, we copy the elements from the input object list.
+								int tempState = -1; count = 0;
+								String initial = "";
+								for (Thing T : FU.getInputList()){
+									// -- this should only happen for one instance, unless we are dealing with multiple instances 
+									//		of a single object in one action.
+									if (!(T.equals(nodes.get(index)))){
+										tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getInputDescriptor().get(count));
+									}
+									else {
+										// .. but we need to note the state of the object.
+										tempState = ((Object)T).getObjectState();
+										copied = FU.getInputDescriptor().get(count);
+										initial = ((Object)T).getStateLabel();
+									}
+									count++;
+								}
+								
+								if (tempState == -1){
+									// issue with some items not actually being in the input; 
+									//	simply label them as "no state".
+									tempState = stateList.indexOf("no state");
+									initial = "no state";
+								}
+								
+								// -- create a new object and add it to the list of all nodes
+								Object initialState = new Object(O.getObjectType(), tempState);
+								initialState.setObjectLabel(O.getObjectLabel());
+								initialState.setStateLabel(initial);
+								tempFU.addObjectNode(initialState, FunctionalUnit.nodeType.Input, copied);
+								
+								// -- this object now exists in FOON, so we add it to list of all nodes
+								nodes.add(initialState);
+								
+								// -- finally, we add this functional unit to the list of all units.
+								FUtoAdd.add(tempFU);
+							}
+						}
+						
+						// -- add all new functional units to universal FOON
+						for (FunctionalUnit FU : FUtoAdd){
+							// only add the functional unit if there isn't a copy of it already in FOON.
+							if (!FUExists(FU,-1)){
+								FOON_containers.add(FU);								
+							}
+						}
+					}
+				}
+			}
+		}
+		// -- write all the new functional units to the file..
+		outputMergedGraph(filePath);
+		// 		... and then read them again into the one-mode projected graphs.
+		constructFUGraph(new Scanner(filePath));
+		
 	}
 	
 	@SuppressWarnings("unused")
