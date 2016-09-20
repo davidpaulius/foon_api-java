@@ -73,6 +73,7 @@ public class FunctionalUnit {
 		// simply return true or false depending on the value of results
 		return (results == 3);
 	}
+	
 	public boolean equals(FunctionalUnit U){
 		int results = 0; // this number must add up to three (3) which suggests that all parts match!
 		int count = 0; // counter used to determine number of hits (true matches)
@@ -111,6 +112,46 @@ public class FunctionalUnit {
 		// simply return true or false depending on the value of results
 		return (results == 3);
 	}
+	
+	public boolean equalsNoState(FunctionalUnit U){
+		int results = 0; // this number must add up to three (3) which suggests that all parts match!
+		int count = 0; // counter used to determine number of hits (true matches)
+		// checking if the input nodes are all the same!
+		for(Thing T : this.inputNodes){
+			for (Thing TU : U.inputNodes){
+				if (T.equals(TU)){
+					count++;
+				}
+			}
+		}
+		// if the counter matches up to the number of inputs,
+		//	then that means we have the same set of inputs.
+		if (count == this.getNumberOfInputs()){
+			results++;
+		} 
+		
+		// checking if the Motion is the same
+		if (((Motion)this.motionNode).equals((Motion)U.motionNode)){
+			results++;
+		} 
+		
+		// checking if the output nodes are all the same!
+		count = 0;
+		for(Thing T : this.outputNodes){
+			for (Thing TU : U.outputNodes){
+				if (T.equals(TU)){
+					count++;
+				}
+			}
+		}
+		if (count == this.getNumberOfOutputs()){
+			results++;
+		} 
+		
+		// simply return true or false depending on the value of results
+		return (results == 3);
+	}
+	
 	
 	public Thing getMotion(){
 		return motionNode;

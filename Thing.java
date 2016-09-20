@@ -13,6 +13,12 @@ public class Thing {
     	label = "";
     }
     
+    public Thing(int n, String l){
+        identifier = n;
+        label = l;
+        list = new ArrayList<Thing>();
+    }
+    
     // constructor method for a Thing object
     public Thing(int n)
     {
@@ -195,7 +201,6 @@ class Object extends Thing {
     	//			O##		<name of object>
     	//			S##		<name of state>	{<contained objects (if any)}
 		System.out.print("O" + this.getType() + "\t" + this.getLabel() + "\nS" + this.getObjectState() + "\t" + this.getStateLabel());
-		System.out.println();
 	}
 
     public String getObject(){
@@ -285,4 +290,10 @@ class Motion extends Thing {
     public Motion(){
     	// empty constructor just for the option of creating empty Motion.
     };
+}
+
+class Container extends Object{
+	public boolean equals(Object O){
+		return this.equals(O) && this.equalsWithIngredients(O);
+	}
 }
