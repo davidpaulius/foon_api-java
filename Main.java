@@ -1923,14 +1923,13 @@ public class Main {
 					}
 					boolean found = false;
 					for (FunctionalUnit FU : tree){
-						if (FU.equalsNoState(tempFU))
+						if (FU.equalsNoState(tempFU)){
 							// ensuring that we do not repeat any units
-							found = true;
-							break;
+							found = true; break;
+						}
 					}
-					if (!found){
+					if (!found)
 						tree.add(tempFU);
-					}
 				}
 				else {
 					// -- if a solution has not been found yet, add the object back to queue.
@@ -1971,7 +1970,7 @@ public class Main {
 		if (index == -1) {
 			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
 			System.out.println("Finding the closest object..");
-			doLevel1Search(O);
+			doSemanticSimilaritySearch(O);
 			return;
 		}
 		
@@ -2009,9 +2008,8 @@ public class Main {
 			} else {
 				// .. we then need to find a substitute item in our environment.
 				// TODO: how do we find this substitute item?
-				
-			}
-			
+				doSemanticSimilaritySearch(T);
+			}		
 		}
 		
 		while(!itemsToSearch.isEmpty()) {
@@ -2035,8 +2033,7 @@ public class Main {
 			flag = false;
 			for (Object S : kitchen){
 				if (S.equals((Object)tempObject)){
-					flag = true;
-					break;
+					flag = true; break;
 				}
 			}
 			
@@ -2071,8 +2068,7 @@ public class Main {
 					flag = false;
 					for (Thing U : kitchen){
 						if (((Object)U).equals((Object)T)){
-							flag = true;
-							break;
+							flag = true; break;
 						}
 					}
 					if (flag == false){
@@ -2096,8 +2092,14 @@ public class Main {
 						// remove all functional units that can make an item - we take the first!
 						FUtoSearch.pop();
 					}
-					if (!tree.contains(tempFU))
-						// ensuring that we do not repeat any units
+					boolean found = false;
+					for (FunctionalUnit FU : tree){
+						if (FU.equalsNoState(tempFU)){
+							// ensuring that we do not repeat any units
+							found = true; break;
+						}
+					}
+					if (!found)
 						tree.add(tempFU);
 				}
 				else {
@@ -2141,7 +2143,7 @@ public class Main {
 		if (index == -1) {
 			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
 			System.out.println("Finding the closest object..");
-			doLevel1Search(O);
+			doSemanticSimilaritySearch(O);
 			return;
 		}
 		
@@ -2264,13 +2266,13 @@ public class Main {
 					}
 					boolean found = false;
 					for (FunctionalUnit FU : tree){
-						if (FU.equalsWithIngredients(tempFU))
+						if (FU.equalsWithIngredients(tempFU)){
 							// ensuring that we do not repeat any units
 							found = true; break;
+						}
 					}
-					if (!found){
+					if (!found) 
 						tree.add(tempFU);
-					}
 				}
 				else {
 					// -- if a solution has not been found yet, add the object back to queue.
@@ -2292,7 +2294,7 @@ public class Main {
 		output.close();
 	}
 
-	private static void doLevel1Search(Object O) throws Exception {
+	private static void doSemanticSimilaritySearch(Object O) throws Exception {
 		// LEVEL ONE: 
 		
 		// We need to store the similarities found from the Python script:
