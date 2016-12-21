@@ -233,8 +233,10 @@ class Object extends Thing {
     }
     
     public void setIngredient(String O){
-    	contained.add(O);
-    	numIngredients++;
+    	if (!contained.contains(O)){
+    		contained.add(O);
+    		numIngredients++;
+    	}
     }
     
     public String getIngredients(){

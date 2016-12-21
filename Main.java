@@ -2,6 +2,7 @@ package foon;
 
 import java.io.*;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import javax.swing.*;
@@ -41,20 +42,23 @@ public class Main {
 	private static ArrayList<Thing> nodes_abstract, nodes;
 	private static int totalNodes = 0; // total number of nodes that are in the network
 
+	private static ArrayList<FunctionalUnit> FOON;
+	private static ArrayList<FunctionalUnit> FOON_abstract; // FOON - list for object-state 
+	private static ArrayList<FunctionalUnit> FOON_Ingredients; //  -- this will be the list of FUs taking into account ingredients for uniqueness
+
 	private static ArrayList<Thing> oneModeObject; // one-mode projection of only object nodes, not accounting states!
 	private static ArrayList<Thing> oneModeObjectAbstract; // one-mode projection of only object nodes, accounting for abstract state
 	private static ArrayList<Thing> oneModeObjectIngredients; // one-mode projection of only object nodes, accounting for uniqueness of ingredients.
 	private static ArrayList<Thing> functionalMotions; 
 	static int[] distances;
+	
+	private static int depth = 500000;
 
 	static boolean[] visited;
 
 	private static int[] motionFrequency; // array to count the number of instances of each motion in a graph
 
 	static ArrayList<String> file; 
-	private static ArrayList<FunctionalUnit> FOON;
-	private static ArrayList<FunctionalUnit> FOON_abstract; // FOON - list for object-state 
-	private static ArrayList<FunctionalUnit> FOON_Ingredients; //  -- this will be the list of FUs taking into account ingredients for uniqueness
 	
 	// for backtracking/branch-and-bound algorithm
 	private static ArrayList<FunctionalUnit> reverseFOON; // list of all Functional Units in the network but edges are in REVERSE
@@ -117,11 +121,11 @@ public class Main {
 		System.out.println("*********************************************************************************************");
 		
 		populateLists();
-		averageMotionTimes();
+		// averageMotionTimes();
 
 		// -- list used to print the objects actually existent in FOON 
 		objectsSeen = new int[objectList.size()];
-		checkObjectsExist();
+		// checkObjectsExist();
 		
 		// objects used for taking input from the console:
 		String response;
@@ -581,7 +585,6 @@ public class Main {
 				// -- discerning which hierarchy level we should perform the search at.
 				System.out.print("\tAt what hierarchy level should the search be done? [1/2/3] > ");
 				response = keyboard.nextLine();
-				System.out.println("HEHE"+response);
 				if (response.equals("1")){
 					getTaskTreeLevel1(searchObject, kitchenItems);
 				} else if (response.equals("2")){
@@ -622,11 +625,105 @@ public class Main {
 			}
 			
 			else if (response.equals("12")){
-				expandNetwork();
+				System.out.print("\t-> Please type the threshold value (between 0 and 1) > ");
+				double threshold = keyboard.nextDouble();
+				expandNetwork(threshold);
+			}
+			
+			else if (response.equals("31")){
+				parseFunctionalUnits();
 			}
 			
 			else if (response.equals("13")){
-				parseFunctionalUnits();
+				// -- selecting the text file giving all of the items available in the environment
+				chooser = new JFileChooser();
+				chooser.setCurrentDirectory(new java.io.File("."));
+				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+				chooser.setDialogTitle("FOON_analysis - Choose file with items in Environment:");
+				chooser.setAcceptAllFileFilterUsed(true);
+				
+				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					System.out.println("File selected is : " + chooser.getSelectedFile());
+				} else {
+					System.err.println("Error in getting the file!");
+					keyboard.close();
+					return;
+				}
+				
+				// -- all ingredients/utensils available in scene will be stored in a 
+				//		set data structure, taking into account only unique objects.
+				HashSet<Object> kitchenItems = new HashSet<Object>();
+
+				// -- reading in all available items from file:
+				Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));				
+				while(file.hasNext()) {
+					String line = file.nextLine();
+					if (line.startsWith("O")){
+						String[] objectParts = line.split("O", 2); // get the Object identifier by splitting first instance of O
+						objectParts = objectParts[1].split("\t");
+
+						// read the next line containing the Object state information
+						line = file.nextLine();
+						String[] stateParts = line.split("S", 2); // get the Object's state identifier by splitting first instance of S
+						stateParts = stateParts[1].split("\t");
+
+						// create new Object node
+						Object newObject = new Object(Integer.parseInt(objectParts[0]), Integer.parseInt(stateParts[0]), objectParts[1], stateParts[1]);
+						
+						// checking if this object is a container:
+						if (stateParts.length > 2){
+							String [] ingredients = { stateParts[2] };
+							ingredients = ingredients[0].split("\\{");
+							ingredients = ingredients[1].split("\\}");
+							ingredients = ingredients[0].split(",");
+							// setting all the ingredients
+							for (String I : ingredients){
+								newObject.setIngredient(I);
+							}
+						}
+						kitchenItems.add(newObject);
+					}
+				}
+				file.close();
+						
+				// -- discerning which hierarchy level we should perform the search at.
+				System.out.print("\tAt what hierarchy level should the search be done? [1/2/3] > ");
+				response = keyboard.nextLine();
+				int level = Integer.parseInt(response);
+				
+				System.out.print("\tHow many trials should be done for the search? > ");
+				response = keyboard.nextLine();
+				int trials = Integer.parseInt(response);
+				System.out.print("\tHow many objects should be randomly selected in each trial? > ");
+				response = keyboard.nextLine();
+				int objects = Integer.parseInt(response);
+
+				// Opens a dialog that will be used for opening the network file:
+				chooser = new JFileChooser();
+				chooser.setCurrentDirectory(new java.io.File("."));
+				chooser.setDialogTitle("FOON_analysis - Choose the expanded network file to open:");
+				chooser.setAcceptAllFileFilterUsed(true);
+				chooser.setFileHidingEnabled(false);
+				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					System.out.println("Network file selected : " + chooser.getSelectedFile());
+				} else {
+					System.err.println("Error in getting path of file!");
+					return;
+				}
+						
+				String expanded = chooser.getSelectedFile().getAbsolutePath();
+				
+				System.out.print("\tWhat type of nodes should be used in testing? "
+						+ "\n\t 1) Only goal nodes and no starting nodes (i.e. NOT used as input)?"
+						+ "\n\t 2) Any node which is not a starting node (i.e. MUST be used as output)?"
+						+ "\n\t 3) Any type of node? \n\t\t[1/2/3] > ");
+				response = keyboard.nextLine();
+				int target = Integer.parseInt(response);
+								
+				performRandomSearchTest(trials, objects, level, target, kitchenItems, expanded);
+			}
+			else if (response.equals("41")){
+				getObjectStates();
 			}
 			
 			else break;
@@ -665,6 +762,7 @@ public class Main {
 		System.out.println("\t10.	Print all functional units (not considering ingredients)?");
 		System.out.println("\t11.	Print all functional units (considering ingredients)?");
 		System.out.println("\t12.	Expand FOON network by similarity measures?");
+		System.out.println("\t13.	Perform random task-tree retrieval test?");
 		System.out.println("(Press any other key and ENTER to exit)");
 		System.out.print("\nPlease enter your response here: > ");
 
@@ -691,7 +789,7 @@ public class Main {
 	private static void checkObjectsExist() throws Exception{
 		// Method which simply goes through all objects in FOON and marks those present from the object list
 		for (Thing T : oneModeObject){
-			T.printThing();
+			//T.printThing();
 			objectsSeen[T.getType()]++;
 		}
 		
@@ -725,8 +823,10 @@ public class Main {
 						
 		Scanner file = new Scanner(new File(chooser.getSelectedFile().getAbsolutePath()));
 		
-		while(file.hasNext()) {
+		while(file.hasNext()) {			
 			String line = file.nextLine();
+			if (line.startsWith("//"))
+				continue;
 			String[] parts = line.split("\t");
 			objectList.add(parts[1]);
 		}
@@ -1285,8 +1385,8 @@ public class Main {
 			}
 			for(FunctionalUnit F : FOON_abstract){
 				if (F.equals(U)){
-					System.out.println("Functional unit (no ingredients) already exists in FOON!");
-					U.printFunctionalUnit();
+					//System.out.println("Functional unit (no ingredients) already exists in FOON!");
+					//U.printFunctionalUnit();
 					return true;
 				}
 			}
@@ -1298,8 +1398,8 @@ public class Main {
 			}
 			for(FunctionalUnit F : reverseFOON){
 				if (F.equals(U)){
-					System.out.println("Functional unit already exists in reversed FOON!");
-					U.printFunctionalUnit();
+					//System.out.println("Functional unit already exists in reversed FOON!");
+					//U.printFunctionalUnit();
 					return true;
 				}
 			}
@@ -1312,7 +1412,7 @@ public class Main {
 			}
 			for(FunctionalUnit F : FOON_Ingredients){
 				if (F.equalsWithIngredients(U)){
-					System.out.println("Functional unit (with containers) already exists in FOON!");
+					//System.out.println("Functional unit (with containers) already exists in FOON!");
 					//U.printFunctionalUnit();
 					return true;
 				}
@@ -1325,7 +1425,7 @@ public class Main {
 			}
 			for(FunctionalUnit F : FOON){
 				if (F.equalsNoState(U)){
-					System.out.println("Functional unit (with containers) already exists in FOON!");
+					//System.out.println("Functional unit (with containers) already exists in FOON!");
 					//U.printFunctionalUnit();
 					return true;
 				}
@@ -1338,8 +1438,8 @@ public class Main {
 			}
 			for(FunctionalUnit F : reverseFOON_containers){
 				if (F.equalsWithIngredients(U)){
-					System.out.println("Functional unit (with containers) already exists in FOON!");
-					U.printFunctionalUnit();
+					//System.out.println("Functional unit (with containers) already exists in FOON!");
+					//U.printFunctionalUnit();
 					return true;
 				}
 			}
@@ -1512,7 +1612,6 @@ public class Main {
 			} else {
 				// We are adding a Motion node, so very easy to deal with
 				isInput = false;
-				System.out.println(line);
 				motionParts = line.split("M", 2); // get the Motion number
 				motionParts = motionParts[1].split("\t"); // get the Motion label
 
@@ -1798,10 +1897,12 @@ public class Main {
 
 	}
 			
-	private static void getTaskTreeLevel1(Object O, HashSet<Object> L) throws Exception{
+	private static boolean getTaskTreeLevel1(Object O, HashSet<Object> L) throws Exception{
 		// Searching for task sequence to make a certain object O
 		//	-- we have a set of items found in the kitchen environment given in L
 		//	-- we should first find out if the node exists in FOON
+		
+		int max_iterations = 0;
 		
 		// searching for the object in the FOON
 		int index = -1; 
@@ -1816,7 +1917,7 @@ public class Main {
 			System.out.println("Item O" + O.getType() + " has not been found in network!");
 			System.out.println("Finding the closest object..");
 			//doLevel1Search(O);
-			return;
+			return false;
 		}
 		
 		// What structures do we need in record keeping?
@@ -1856,10 +1957,24 @@ public class Main {
 				
 			}
 		}
-				
+		
+		int prior = 0;
+		
 		while(!itemsToSearch.isEmpty()) {
 			// -- Remove the item we are trying to make from the queue of items we need to learn how to make        	
 			Thing tempObject = itemsToSearch.remove(); 
+		
+			// Sort-of a time-out for the search if it does not produce an answer dictated by the amount of time it takes.
+			if (tempObject.equals(goalNode) && prior == itemsToSearch.size())
+				max_iterations++;
+			
+			if (max_iterations > 100){
+				// just the worst possible way of doing this, but will do for now.
+				System.out.println("No solution can be found!");
+				return false;
+			}
+			
+			prior = itemsToSearch.size();
 			
 			if (kitchen.contains(goalNode)){
 				// -- If we found the item already, why continue searching? (Base case)
@@ -1942,18 +2057,25 @@ public class Main {
 		}
 	
 		// -- saving task tree sequence to file..		
-		String fileName = filePath.substring(0, filePath.length() - 4) + "_task_tree_lvl1.txt";
+		int g = filePath.lastIndexOf("\\");
+		String folder = filePath.substring(0, g) + "//task_trees_lvl_1//" + filePath.substring(g+1, filePath.length() - 4);
+		File directory = new File(folder);
+		if (!directory.exists()){
+			directory.mkdirs();
+		}
+		String fileName = folder + "_" + O.getObjectLabel() +  "_task_tree_lvl1.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 		for (FunctionalUnit FU : tree){
 			// just write all functional units that were put into the list 
 			output.write((FU.getInputsForFile() + FU.getMotionForFile() + FU.getOutputsForFile() + "//\n"));
 		}
-		System.out.println(" -- Task tree sequence saved in " + fileName);
+		//System.out.println(" -- Task tree sequence saved in " + fileName);
 		output.close();
+		return true;
 	}
 
-	private static void getTaskTreeLevel2(Object O, HashSet<Object> L) throws Exception{
+	private static boolean getTaskTreeLevel2(Object O, HashSet<Object> L) throws Exception{
 		// Searching for task sequence to make a certain object O
 		//	-- we have a set of items found in the kitchen environment given in L
 		//	-- we should first find out if the node exists in FOON
@@ -1970,8 +2092,8 @@ public class Main {
 		if (index == -1) {
 			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
 			System.out.println("Finding the closest object..");
-			doSemanticSimilaritySearch(O);
-			return;
+			//doSemanticSimilaritySearch(O);
+			return false;
 		}
 		
 		// What structures do we need in record keeping?
@@ -1998,7 +2120,7 @@ public class Main {
 			itemsSeen.add(T);
 			index = -1;
 			for (Thing N : nodes_abstract) {
-				if (N instanceof Object && T.equals((Object)N)){
+				if (N instanceof Object && ((Object)T).equals((Object)N)){
 					index = nodes_abstract.indexOf(N);
 				}
 			}
@@ -2008,19 +2130,32 @@ public class Main {
 			} else {
 				// .. we then need to find a substitute item in our environment.
 				// TODO: how do we find this substitute item?
-				doSemanticSimilaritySearch(T);
+				//doSemanticSimilaritySearch(T);
 			}		
 		}
+
+		int max_iterations = 0, prior = -1;
 		
 		while(!itemsToSearch.isEmpty()) {
 			// -- Remove the item we are trying to make from the queue of items we need to learn how to make        	
 			Object tempObject = (Object) itemsToSearch.remove(); 
 			
+			// Sort-of a time-out for the search if it does not produce an answer dictated by the amount of time it takes.
+			if (prior == itemsToSearch.size()){ // ((Object)tempObject).equals(goalNode) && 
+				max_iterations++;
+			}			
+			
+			if (max_iterations > depth){
+				// just the worst possible way of doing this, but will do for now.
+				return false;
+			}
+
+			prior = itemsToSearch.size();
+
 			boolean flag = false;
 			for (Object S : kitchen){
 				if (S.equals((Object)goalNode)){
-					flag = true;
-					break;
+					flag = true; break;
 				}
 			}
 			
@@ -2042,7 +2177,7 @@ public class Main {
 				continue;
 			}
 			
-			System.out.println("\tSearching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
+			// System.out.println("\tSearching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
 			
 			// We keep track of the total number of "ways" (functional units) of making a target node.
 			int numProcedures = 0;
@@ -2061,6 +2196,30 @@ public class Main {
 				}
 			}
 			
+			// -- this means that there is NO solution to making an object, and so we just need to add it as something we 
+			//		still need to learn how to make. 
+			// -- this should probably indicate that there is no task tree.
+			if (FUtoSearch.isEmpty()){
+				// -- if a solution has not been found yet, add the object back to queue.
+				boolean found = false;
+				
+				// -- both conditions true -> we have already seen the object and we have it
+				for (Thing U : kitchen){
+					if (((Object)U).equals((Object)tempObject)){
+						found = true; break;	
+					}	
+				}
+				
+				for (Thing U : itemsToSearch){
+					if (((Object)U).equals((Object)tempObject)){
+						found = true; break;	
+					}	
+				}
+				
+				if (found == false)
+					itemsToSearch.add((Object)tempObject);
+			}
+			
 			// -- currently we know how to get the entire tree needed for ALL possibilities..!
 			while (!FUtoSearch.isEmpty()){
 				FunctionalUnit tempFU = FUtoSearch.pop(); int count = 0; 
@@ -2074,7 +2233,13 @@ public class Main {
 					if (flag == false){
 						// if an item is not in the "objects found" list, then we add it to the list of items
 						//	we then need to explore and find out how to make.
-						itemsToSearch.add((Object) T);
+						for (Thing U : itemsToSearch){
+							if (((Object)U).equals((Object)T)){
+								flag = true; break;	
+							}	
+						}
+						if (flag == false)
+							itemsToSearch.add((Object)T);
 					} 
 					else { 
 						// keeping track of whether we have all items for a functional unit or not!
@@ -2086,65 +2251,106 @@ public class Main {
 				if (count == tempFU.getNumberOfInputs()){
 					// We will have all items needed to make something;
 					//	add that item to the "kitchen", as we consider it already made.
-					kitchen.add(tempObject);
-					itemsSeen.add(tempObject);
+					boolean found = false;
+					for (Thing U : kitchen){
+						if (((Object)U).equals((Object)tempObject)){
+							found = true; break;
+						}	
+					}
+					if (found == false){
+						kitchen.add(tempObject);
+					}
+					
+					// Ensuring that we do not add duplicate objects to these lists..
+					found = false;
+					for (Thing U : itemsSeen){
+						if (((Object)U).equals((Object)tempObject)){
+							found = true; break;	
+						}	
+					}
+					if (found == false){
+						itemsSeen.add(tempObject);
+					}
+					
 					for (int x = 0; x < numProcedures; x++){
 						// remove all functional units that can make an item - we take the first!
 						FUtoSearch.pop();
 					}
-					boolean found = false;
+					found = false;
 					for (FunctionalUnit FU : tree){
-						if (FU.equalsNoState(tempFU)){
+						if (FU.equals(tempFU)){
 							// ensuring that we do not repeat any units
 							found = true; break;
 						}
 					}
-					if (!found)
+					if (!found) 
 						tree.add(tempFU);
 				}
 				else {
 					// -- if a solution has not been found yet, add the object back to queue.
-					itemsToSearch.add(tempObject);
-				}
+					boolean found = false;
+					
+					// -- both conditions true -> we have already seen the object and we have it
+					for (Thing U : kitchen){
+						if (((Object)U).equals((Object)tempObject)){
+							found = true; break;	
+						}	
+					}
+					
+					for (Thing U : itemsToSearch){
+						if (((Object)U).equals((Object)tempObject)){
+							found = true; break;	
+						}	
+					}
+					
+					if (found == false)
+						itemsToSearch.add((Object)tempObject);
+				}				
+
 			}
-
 			// -- how can we use heuristics to find the SHORTEST path to making a certain item?
-
 		}
 	
 		// -- saving task tree sequence to file..		
-		String fileName = filePath.substring(0, filePath.length() - 4) + "_task_tree_lvl2.txt";
+		int g = filePath.lastIndexOf("\\");
+		String folder = filePath.substring(0, g) + "//task_trees_lvl_2//";
+		File directory = new File(folder);
+		if (!directory.exists()){
+			directory.mkdirs();
+		}
+		String fileName = folder + filePath.substring(g+1, filePath.length() - 4) + "_" + O.getObjectLabel() +  "_task_tree_lvl2.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 		for (FunctionalUnit FU : tree){
 			// just write all functional units that were put into the list 
 			output.write((FU.getInputsForFile() + FU.getMotionForFile() + FU.getOutputsForFile() + "//\n"));
 		}
-		System.out.println(" -- Task tree sequence saved in " + fileName);
+		//System.out.println(" -- Task tree sequence saved in " + fileName);
 		output.close();
+		return true;
 	}
 
-	private static void getTaskTreeLevel3(Object O, HashSet<Object> L) throws Exception{
+	private static boolean getTaskTreeLevel3(Object O, HashSet<Object> L) throws Exception{
 		// Searching for task sequence to make a certain object O
 		//	-- we have a set of items found in the kitchen environment given in L
 		//	-- we should first find out if the node exists in FOON
 		
-		O.printObject();
+		//O.printObject();
 		
 		// searching for the object in the FOON
 		int index = -1; 
 		for (Thing T : nodes_Ingredients) {
-			if (T instanceof Object && O.equals((Object)T)){
+			if (T instanceof Object && O.equalsWithIngredients((Object)T)){
 				index = nodes_Ingredients.indexOf(T);
 			}
 		}
-
+		
 		// checking to see if the item has been found in FOON
 		if (index == -1) {
 			System.out.println("Item O" + O.getObjectType() + "_S" + O.getObjectState() + " has not been found in network!");
 			System.out.println("Finding the closest object..");
-			doSemanticSimilaritySearch(O);
-			return;
+			//doSemanticSimilaritySearch(O);
+			return false;
 		}
 		
 		// What structures do we need in record keeping?
@@ -2168,7 +2374,9 @@ public class Main {
 		ArrayList<FunctionalUnit> tree = new ArrayList<FunctionalUnit>();        
 
 		for (Object T : L){
-			itemsSeen.add((Container)T);
+			
+			itemsSeen.add((Object)T);
+			
 			index = -1;
 			for (Thing N : nodes_Ingredients) {
 				if (N instanceof Object && T.equalsWithIngredients((Object)N)){
@@ -2184,10 +2392,25 @@ public class Main {
 				
 			}
 		}
-				
+
+		int max_iterations = 0, prior = 0;
+		
 		while(!itemsToSearch.isEmpty()) {
 			// -- Remove the item we are trying to make from the queue of items we need to learn how to make        	
 			Object tempObject = (Object) itemsToSearch.remove(); 
+						
+			// Sort-of a time-out for the search if it does not produce an answer dictated by the amount of time it takes.
+			if (((Object)tempObject).equals(goalNode) || prior == itemsToSearch.size()){
+				max_iterations++;
+			}			
+
+			if (max_iterations > 100000){
+				// just the worst possible way of doing this, but will do for now.
+//				System.out.println("No solution can be found in time!");
+				return false;
+			}
+
+			prior = itemsToSearch.size();
 			
 			boolean flag = false;
 			for (Thing T : kitchen){
@@ -2214,7 +2437,7 @@ public class Main {
 				continue;
 			}
 			
-			System.out.println("\tSearching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
+			//System.out.println("\tSearching for O" + tempObject.getObjectType() + "_S" + tempObject.getObjectState() +"...");
 			
 			// We keep track of the total number of "ways" (functional units) of making a target node.
 			int numProcedures = 0;
@@ -2237,17 +2460,24 @@ public class Main {
 			while (!FUtoSearch.isEmpty()){
 				FunctionalUnit tempFU = FUtoSearch.pop();
 				int count = 0; 
+				
 				for (Thing T : tempFU.getInputList()){
 					boolean found = false;
 					for (Thing U : kitchen){
-						if (!((Object)U).equalsWithIngredients((Object)T)){
+						if (((Object)U).equalsWithIngredients((Object)T)){
 							found = true; break;	
 						}
 					}
 					if (found == false){
 						// if an item is not in the "objects found" list, then we add it to the list of items
 						//	we then need to explore and find out how to make.
-						itemsToSearch.add((Container) T);
+						for (Thing U : itemsToSearch){
+							if (((Object)U).equalsWithIngredients((Object)T)){
+								found = true; break;	
+							}	
+						}
+						if (found == false)
+							itemsToSearch.add((Object)T);
 					} 
 					else { 
 					// keeping track of whether we have all items for a functional unit or not!
@@ -2258,8 +2488,8 @@ public class Main {
 				if (count == tempFU.getNumberOfInputs()){
 					// We will have all items needed to make something;
 					//	add that item to the "kitchen", as we consider it already made.
-					kitchen.add((Container)tempObject);
-					itemsSeen.add((Container)tempObject);
+					kitchen.add(tempObject);
+					itemsSeen.add(tempObject);
 					for (int x = 0; x < numProcedures; x++){
 						// remove all functional units that can make an item - we take the first!
 						FUtoSearch.pop();
@@ -2276,22 +2506,37 @@ public class Main {
 				}
 				else {
 					// -- if a solution has not been found yet, add the object back to queue.
-					itemsToSearch.add((Container)tempObject);
+//					itemsToSearch.add(tempObject);
+					boolean found = false;
+					for (Thing U : itemsToSearch){
+						if (((Object)U).equalsWithIngredients((Object)tempObject)){
+							found = true; break;	
+						}	
+					}
+					if (found == false)
+						itemsToSearch.add((Object)tempObject);
 				}				
 			}
 			// -- how can we use heuristics to find the SHORTEST path to making a certain item?
 		}
-	
-		// -- saving task tree sequence to file..		
-		String fileName = filePath.substring(0, filePath.length() - 4) + "_task_tree_lvl3.txt";
+
+		// -- saving task tree sequence to file..
+		int g = filePath.lastIndexOf("\\");
+		String folder = filePath.substring(0, g) + "//task_trees_lvl_3//" + filePath.substring(g+1, filePath.length() - 4);
+		File directory = new File(folder);
+		if (!directory.exists()){
+			directory.mkdirs();
+		}
+		String fileName = folder + "_" + O.getObjectLabel() +  "_task_tree_lvl3.txt";
 		File outputFile = new File(fileName);
 		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
 		for (FunctionalUnit FU : tree){
 			// just write all functional units that were put into the list 
 			output.write((FU.getInputsForFile() + FU.getMotionForFile() + FU.getOutputsForFile() + "//\n"));
 		}
-		System.out.println(" -- Task tree sequence saved in " + fileName);
+//		System.out.println(" -- Task tree sequence saved in " + fileName);
 		output.close();
+		return true;
 	}
 
 	private static void doSemanticSimilaritySearch(Object O) throws Exception {
@@ -2450,7 +2695,7 @@ public class Main {
 		}
 	}
 	
-	private static void expandNetwork() throws Exception{
+	private static void expandNetwork(double TH) throws Exception{
 		// -- This function should go through all possible objects (types and states) and expand the network
 		//		based on all of those possibilities.
 		
@@ -2471,6 +2716,9 @@ public class Main {
 			keyboard.close();
 			return;
 		}
+
+		double threshold = TH; // value used as cut-off for similarity between two terms
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_expanded_" + threshold + ".txt";
 
 		// -- Get the list of files within the similarity folder.
 		File directory = chooser.getSelectedFile();
@@ -2507,26 +2755,26 @@ public class Main {
 			for (String value : sorted){
 				// -- if a similarity value is below some threshold, then we can assume that 
 				//		the object is not similar enough to be used as a reference.
-				if (similarity.get(value) < 0.8){
+				
+				if (similarity.get(value) < threshold){
 					continue;
 				}
-			
+							
 				String tempObjectName = value;
 
 				// -- if the object is being compared to itself, just skip it.
-				if (tempObjectName == ingredients[0]){
+				if (tempObjectName.equals(ingredients[0])){
 					continue;
 				}
-				
+								
 				for (int x = 0; x < stateList.size(); x++){
-			
 					// -- creating a temporary object that should be similar to the object in question.
 					Object O = new Object(objectList.indexOf(ingredients[0]), x);
 					
 					// - finding the object associated with a given value 
 					Object tempObject = new Object(objectList.indexOf(tempObjectName), x);
-										
-					// -- checking to see whether the similar object exists in FOON or not 
+
+					// -- checking to see whether the similar object exists in FOON or not; no other meaning. 
 					int index = -1;
 					for (Thing T : nodes_Ingredients) {
 						if (T instanceof Object && ((Object)tempObject).equals((Object)T)){
@@ -2544,19 +2792,40 @@ public class Main {
 						
 						// -- to prevent an Exception from adding new FUs while iterating through them all,
 						//		we add the new units to a temporary list
-						
 						List<FunctionalUnit> FUtoAdd = new ArrayList<FunctionalUnit>();
 						for (FunctionalUnit FU : FOON_Ingredients){
-							if (FU.getOutputList().contains(nodes_Ingredients.get(index))){
+							int found = -1;
+							for (Thing T : FU.getOutputList()){
+								if (((Object)T).equals((Object)nodes_Ingredients.get(index))){
+									found++;
+								}
+							}							
+							//if (FU.getOutputList().contains((Object)nodes_Ingredients.get(index))){
+							if (found != -1){
 								// - first, create a blank functional unit instance...
 								FunctionalUnit tempFU = new FunctionalUnit();
 								// - then, copy the output list; remove the object of question, but add the item we don't know how to make.
 								int count = 0, copied = -1;
+								List<String> ingredientIndex = new ArrayList<String>();
 								for (Thing T : FU.getOutputList()){
-									if (!((Object)T).equals(nodes_Ingredients.get(index))){
+									List<String> tempList = new ArrayList<String>();
+									if (!((Object)T).equals((Object)nodes_Ingredients.get(index))){
 										// -- add object elements to the new functional unit since copies are just references!
-										tempFU.addObjectNode(T, FunctionalUnit.nodeType.Output, FU.getOutputDescriptor().get(count));
+										if (((Object)T).getIngredientsList().contains(tempObjectName)){
+											for (String S : ((Object)T).getIngredientsList()){
+												if (!S.equals(tempObjectName)){
+													tempList.add(S);
+												}
+											}
+											tempList.add(objectList.get(O.getObjectType()));
+											Object tempObj = new Object(((Object)T).getObjectType(), ((Object)T).getObjectState(), ((Object)T).getObjectLabel(), ((Object)T).getStateLabel());
+											tempObj.setIngredientsList(tempList);
+											tempFU.addObjectNode(tempObj, FunctionalUnit.nodeType.Output, FU.getOutputDescriptor().get(count));
+											nodes_Ingredients.add(tempObj);
+										}
+										else tempFU.addObjectNode(T, FunctionalUnit.nodeType.Output, FU.getOutputDescriptor().get(count));
 									} else {
+										
 										// -- take note of the motion descriptor of the object that is found to be similar
 										copied = FU.getOutputDescriptor().get(count);
 									}
@@ -2568,13 +2837,24 @@ public class Main {
 								O.setStateLabel(((Object)nodes_Ingredients.get(index)).getStateLabel());
 								
 								// TODO: what do we do about the ingredients?
-//								for (String S : ((Object)nodes.get(index)).getIngredientsList()){
-//									if (S.equals(tempObjectName)){
-//										O.setIngredient(O.getObject());
-//									}
-//									else O.setIngredient(S);
-//								}
-//								nodes.add(O);
+								if (ingredientIndex.size() > 0){
+									for (String S : ingredientIndex){
+										if (S.equals(tempObjectName)){
+											O.setIngredient(O.getObjectLabel());
+										}
+										else O.setIngredient(S);
+									}
+								}
+
+								int Found = -1;
+								for (Thing T : nodes_Ingredients) {
+									if (T instanceof Object && ((Object)O).equalsWithIngredients((Object)T)){
+										Found = nodes_Ingredients.indexOf(T);
+									}
+								}
+								if (Found == -1){
+									nodes_Ingredients.add(O);
+								}
 	
 								// -- copying the same motion node, but we need to create a new instance of the motion
 								Motion tempMotion = new Motion(FU.getMotion().getType(), FU.getMotion().getLabel());
@@ -2586,16 +2866,32 @@ public class Main {
 					
 								//  -- finally, we copy the elements from the input object list.
 								int tempState = -1; count = 0;
-								String initial = "";
+								String initial = ""; 
+								ingredientIndex = new ArrayList<String>(); String remover = "";
 								for (Thing T : FU.getInputList()){
 									// -- this should only happen for one instance, unless we are dealing with multiple instances 
 									//		of a single object in one action.
-									if (!(T.equals(nodes_Ingredients.get(index)))){
-										tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getInputDescriptor().get(count));
+									if (!(((Object)T).equals((Object)nodes_Ingredients.get(index)))){
+										List<String> tempList = new ArrayList<String>();
+										if (((Object)T).getIngredientsList().contains(tempObjectName)){
+											for (String S : ((Object)T).getIngredientsList()){
+												if (!S.equals(tempObjectName)){
+													tempList.add(S);
+												}
+											}
+											tempList.add(objectList.get(O.getObjectType()));
+											Object tempObj = new Object(((Object)T).getObjectType(), ((Object)T).getObjectState(), ((Object)T).getObjectLabel(), ((Object)T).getStateLabel());
+											tempObj.setIngredientsList(tempList);
+											tempFU.addObjectNode(tempObj, FunctionalUnit.nodeType.Input, FU.getInputDescriptor().get(count));
+											nodes_Ingredients.add(tempObj);
+										}
+										else tempFU.addObjectNode(T, FunctionalUnit.nodeType.Input, FU.getInputDescriptor().get(count));
 									}
 									else {
 										// .. but we need to note the state of the object.
 										tempState = ((Object)T).getObjectState();
+										remover = ((Object)T).getObjectLabel();
+										ingredientIndex = ((Object)T).getIngredientsList();
 										copied = FU.getInputDescriptor().get(count);
 										initial = ((Object)T).getStateLabel();
 									}
@@ -2613,15 +2909,34 @@ public class Main {
 								Object initialState = new Object(O.getObjectType(), tempState);
 								initialState.setObjectLabel(O.getObjectLabel());
 								initialState.setStateLabel(initial);
+
+								if (ingredientIndex.size() > 0){
+									// copying over ingredients in case
+									for (String S : ingredientIndex){
+										if (S.equals(remover)){
+											initialState.setIngredient(O.getObjectLabel());
+										}
+										else initialState.setIngredient(S);
+									}
+								}
+								
 								tempFU.addObjectNode(initialState, FunctionalUnit.nodeType.Input, copied);
 								
 								// -- this object now exists in FOON, so we add it to list of all nodes
-								nodes_Ingredients.add(initialState);
-								
+								Found = -1;
+								for (Thing T : nodes_Ingredients) {
+									if (T instanceof Object && ((Object)initialState).equalsWithIngredients((Object)T)){
+										Found = nodes_Ingredients.indexOf(T);
+									}
+								}
+								if (Found == -1){
+									nodes_Ingredients.add(initialState);
+								}
 								// -- finally, we add this functional unit to the list of all units.
 								FUtoAdd.add(tempFU);
 							}
 						}
+						
 						
 						// -- add all new functional units to universal FOON
 						for (FunctionalUnit FU : FUtoAdd){
@@ -2633,11 +2948,12 @@ public class Main {
 					}
 				}
 			}
+			// write all the new functional units after new functional units have been added
+			outputMergedGraph(fileName);
 		}
 		// -- write all the new functional units to the file..
-		outputMergedGraph(filePath);
 		// 		... and then read them again into the one-mode projected graphs.
-		constructFUGraph(new Scanner(filePath));
+		totalNodes = constructFUGraph(new Scanner(new File(fileName)));
 	}
 	
 	private static void parseFunctionalUnits() throws Exception{
@@ -2742,10 +3058,22 @@ public class Main {
 			
 			String fileName = "BB_FILES/" + F.getName().substring(0, F.getName().length() - 4) + "_BB.txt";
 			outputMergedGraph(fileName);
-		}
-
-		
+		}		
 	}
+	
+	private static void getObjectStates() throws Exception {
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_list_for_Ahmad.txt";
+		File outputFile = new File(fileName);
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+		for (int x = 0; x < nodes_abstract.size(); x++) {
+			if (nodes_abstract.get(x) instanceof Object){
+				output.write( ((Object)nodes_abstract.get(x)).getStateLabel() + " " + ((Object)nodes_abstract.get(x)).getObjectLabel() + "\n");
+			}
+		}
+		output.close();
+	}
+	
+	
 	
 	@SuppressWarnings("unused")
 	private static void doLevel2Search(Object O){
@@ -2758,8 +3086,197 @@ public class Main {
 		// LEVEL THREE: Objects never ever seen in FOON.. no instance of object
 	}
 	
-	
+	private static void performRandomSearchTest(int trials, int objects, int level, int target, HashSet<Object> L, String expanded) throws Exception{
+		// METHOD:	1. select a random object node from the node list
+		//			2. perform the search on the original FOON and note its success (0/1)
+		//			3. perform the search on the expanded FOON and note its success (0/1)
+		//			4. repeat for a certain number of trials 
+		
+		// TODO: Some things..
+		System.out.println(" -- Starting random search test of " + trials + " trials..");
 
+		ArrayList<Object> testedObjects = new ArrayList<Object>(); // list of all items we are performing retrieval for
+		ArrayList<HashSet<Object>> testedItems = new ArrayList<HashSet<Object>>();	// list of all items in each kitchen trial
+		
+		System.out.println(" -- Testing regular network...");
+		String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+		String fileName = filePath.substring(0, filePath.length() - 4) + "_random_search_experiment_lvl_" + level + "_" + timeStamp + ".txt";		
+		File outputFile = new File(fileName);
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+
+		output.write("\nHIERARCHY LEVEL:\t " + level + "\n");
+		
+		output.write("\nFOONs being compared:\n");
+		output.write(" -- regular network: " + filePath + "\n");
+		output.write(" -- expanded network: " + expanded + "\n");	
+		output.write(" -- depth of searches: " + depth + "\n");
+
+		output.write("GOAL NODE PARAMETERS:\n");
+		if (target == 1)
+			output.write(" -- Searching ONLY goal nodes (nodes not used as input)!\n");
+		else if (target == 2)
+			output.write(" -- Searching nodes except those which are not by-products!\n");
+		else
+			output.write(" -- Searching EVERY possible node!\n");
+		
+		output.write(" -- REGULAR NETWORK:" + "\n");
+		// -- set object used for storing the indices we have already searched
+		for (int y = 0; y < trials; y++){
+			
+			System.out.println("\n *************** TRIAL " + (y+1) + " ***************\n");
+			Set<Integer> nums = new HashSet<Integer>();
+			
+			
+			Set<Integer> ingredients = new HashSet<Integer>();
+			HashSet<Object> kitchen = new HashSet<Object>();
+			
+			// -- idea: create a random subset of ingredients which will be used for preparing random goal nodes.
+			int randomSetSize = 100; //  size of the subset of ingredients for a particular trial
+			for (int x = 0; x < randomSetSize; x++) {
+				int RAN;
+				do {
+					RAN = (int) (Math.random() * (L.size()));
+					if (!ingredients.contains(RAN))					
+						break; // needs to be an object node selected..			 
+					ingredients.add(RAN);
+				} while (true);
+				ingredients.add(RAN); //  keep track of the objects we added so to avoid repeated items
+				
+				Iterator<Object> it = L.iterator(); // use iterator to go through HashSet of items
+				int count = 0;
+				while(count < RAN){
+					it.next();
+					count++;
+				}
+				Object temp = it.next();
+				kitchen.add(temp);
+			}
+			testedItems.add(kitchen);
+			
+			int fails = 0;		
+			for (int x = 0; x < objects; x++){
+				// STEP 1: select the random object
+				int rnum;
+				do {
+				  rnum = (int) (Math.random() * (nodes_Ingredients.size()));
+				  boolean found = false;
+				  if ((nodes_Ingredients.get(rnum) instanceof Object && !nums.contains(rnum))){
+					  switch (target){
+						  case 1: 
+							  // -- only select targets which are goal nodes
+							  int count = 0;
+							  for (FunctionalUnit FU : FOON_Ingredients){
+								  for (Thing T : FU.getInputList()){
+									  if (((Object)nodes_Ingredients.get(rnum)).equalsWithIngredients((Object)T))
+										  count++;
+								  }
+							  }
+							  if (count == 0)
+								  found = true;
+							  break;
+						  case 2:
+							// -- only select targets which are anything but start nodes
+							  count = 0;
+							  for (FunctionalUnit FU : FOON_Ingredients){
+								  for (Thing T : FU.getOutputList()){
+									  if (((Object)nodes_Ingredients.get(rnum)).equalsWithIngredients((Object)T))
+										  count++;
+								  }
+							  }
+							  if (count > 0)
+								  found = true;
+							  break;
+						  default:
+							  // -- just select any node!
+							  found = true; break;
+					  }
+					  if (found == true)
+						  break; // needs to be an object node selected..			 
+				  }
+				  nums.add(rnum);
+				} while (true);
+		
+				// Update the set to reflect that we have already selected the object..
+				nums.add(rnum);
+				testedObjects.add((Object)nodes_Ingredients.get(rnum));
+				
+				if (level == 3){
+					if (getTaskTreeLevel3(((Object)nodes_Ingredients.get(rnum)), kitchen) == false)
+						fails++;
+				} else if (level == 2){
+					if (getTaskTreeLevel2(((Object)nodes_Ingredients.get(rnum)), kitchen) == false)
+						fails++;
+				} else if (level == 1){
+					if (getTaskTreeLevel1(((Object)nodes_Ingredients.get(rnum)), kitchen) == false)
+						fails++;
+				} else;
+			}
+			System.out.println(" -- Searching trials ended, results are as follows:");
+			System.out.println("      NUMBER OF SUCCESSFUL SEARCHES:\t" + (objects - fails));
+			System.out.println("      NUMBER OF UNSUCCESSFUL SEARCHES:\t" + fails);
+			System.out.println("      PERCENTAGE OF FAILURE:\t\t" + (double)(fails * 100.0 /objects));
+
+			output.write("\n *************** TRIAL " + (y+1) + " ***************\n");
+			output.write("      NUMBER OF SUCCESSFUL SEARCHES:\t" + (objects - fails) + "\n");
+			output.write("      NUMBER OF UNSUCCESSFUL SEARCHES:\t" + fails + "\n");
+			output.write("      PERCENTAGE OF FAILURE:\t\t" + (double)(fails * 100.0 /objects) + "\n");
+
+		}
+
+		System.out.println("Number of items to search: " + testedObjects.size());
+		
+		System.out.println("\n -- Testing expanded network...");
+		
+		refresh();
+		constructFUGraph(new Scanner(new File(expanded)));
+
+		output.write("\n -- EXPANDED NETWORK:" + "\n");
+		for (int y = 0; y < trials; y++){
+
+			System.out.println("\n *************** TRIAL " + (y+1) + " ***************\n");
+			int fails = 0;		
+			for (int x = 0; x < objects; x++){				
+				if (level == 3){
+					if (getTaskTreeLevel3(testedObjects.get(x + (trials * y)), testedItems.get(y)) == false)
+						fails++;
+				} else if (level == 2){
+					if (getTaskTreeLevel2(testedObjects.get(x + (trials * y)), testedItems.get(y)) == false)
+						fails++;
+				} else if (level == 1){
+					if (getTaskTreeLevel1(testedObjects.get(x + (trials * y)), testedItems.get(y)) == false)
+						fails++;
+				} else;
+			}
+
+			System.out.println(" -- Searching trials ended, results are as follows:");
+			System.out.println("      NUMBER OF SUCCESSFUL SEARCHES:\t" + (objects - fails));
+			System.out.println("      NUMBER OF UNSUCCESSFUL SEARCHES:\t" + fails);
+			System.out.println("      PERCENTAGE OF FAILURE:\t\t" + (double)(fails * 100.0 /objects));
+
+			output.write("\n *************** TRIAL " + (y+1) + " ***************\n");
+			output.write("      NUMBER OF SUCCESSFUL SEARCHES:\t" + (objects - fails) + "\n");
+			output.write("      NUMBER OF UNSUCCESSFUL SEARCHES:\t" + fails + "\n");
+			output.write("      PERCENTAGE OF FAILURE:\t\t" + (double)(fails * 100.0 /objects) + "\n");
+
+			System.out.println("\n");
+			
+		}		
+		output.close();
+		refresh();
+		constructFUGraph(new Scanner(new File(filePath)));
+
+	}
+	
+	private static void refresh(){
+		totalNodes = 0;
+		nodes = new ArrayList<Thing>();  
+		nodes_abstract = new ArrayList<Thing>();  
+		nodes_Ingredients = new ArrayList<Thing>();  
+
+		FOON = new ArrayList<FunctionalUnit>();  
+		FOON_abstract = new ArrayList<FunctionalUnit>();  
+		FOON_Ingredients = new ArrayList<FunctionalUnit>();  
+	}
 	
 // -- Previous versions of functions which never worked well..
 	
