@@ -1,0 +1,92 @@
+0	pick + place
+1	mix
+2	sprinkle	
+3	scoop
+4	pour
+5	chop
+6	stir
+7	grind
+8	cut
+9	grate
+10	slice
+11	flip
+12	shake
+13	spray
+14	squeeze
+15	press
+16	spread
+17	peel
+18	scrape
+19	crack
+20	mash
+21	open
+22	close
+23	roll
+24	attach
+25	melt
+26	dip
+27	fold
+28	blend
+29	brush
+30	wrap
+31	unwrap
+32	shave
+33	cover
+34	uncover
+35	drip
+36	boil
+37	fry
+38	simmer
+39	bake
+40	cook
+41	heat
+42	turn on
+43	sit
+44	insert
+45	remove
+46	wipe
+47	light
+48	cut off ends
+49	throw away
+50	pull up
+51	pull apart
+52	unroll
+53	wash
+54	shake
+55	add
+56	scratch off
+57	cut out inside
+58	smell
+59	gather
+60	open-close
+61	dry
+62	plug
+63	unplug
+64	push down
+65	assemble
+66	take apart
+67	clean
+68	taste
+69	read
+70	change temperature
+71	test temperature
+72	fill
+73	rip open
+74	arrange
+75	shape
+76	remove label
+77	hold
+78	pull
+79	turn off
+80	whip
+81	wring out
+82	sharpen
+83	hang
+84	stamp
+85	test sharpness
+86	rip off
+87	purge
+88	poke
+89	tie
+90	unlock
+91	lock

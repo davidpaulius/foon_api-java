@@ -294,8 +294,29 @@ class Motion extends Thing {
     };
 }
 
-class Container extends Object{
-	public boolean equals(Object O){
-		return this.equals(O) && this.equalsWithIngredients(O);
+class Category {
+	private String category_label;
+	private int category_ID;
+	
+	public Category() { };
+	
+	public Category(String S, int I){
+		category_label = S; category_ID = I;
 	}
-}
+	
+	public void setLabel(String S){
+		category_label = S;
+	}
+	
+	public void setID(int I){
+		category_ID = I;
+	}
+	
+	public String getLabel(){
+		return category_label;
+	}
+
+	public int getID(){
+		return category_ID;
+	}
+};

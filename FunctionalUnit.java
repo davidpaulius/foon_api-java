@@ -284,4 +284,18 @@ public class FunctionalUnit {
 		}
 		return cat;
 	}
+	
+	public boolean inputExists(Thing I){
+		for (Thing T : inputNodes){
+			if (((Object)I).equals((Object)T)) return true;
+		}
+		return false;
+	}
+	
+	public boolean outputExists(Thing I){
+		for (Thing T : outputNodes){
+			if (((Object)I).equals((Object)T)) return true;
+		}
+		return false;
+	}
 }

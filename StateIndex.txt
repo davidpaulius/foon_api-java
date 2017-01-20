@@ -1,0 +1,338 @@
+0	alfredo
+1	attached
+2	bacon macaroni and cheese
+3	baked
+4	baked fries
+5	baked macaroni and cheese
+6	baked pastry
+7	baking tray
+8	baking tray inside
+9	bar
+10	barbecued
+11	barbecued ribs
+12	batter
+13	beaten
+14	beef enchilada
+15	beef patty
+16	beef steak
+17	biscuit dough
+18	black beans
+19	black pepper
+20	blended
+21	block
+22	blood orange
+23	blood orange salad
+24	boiled
+25	boiling
+26	boiling water
+27	bowl inside
+28	bread crumbs
+29	breaded
+30	breakfast muffins
+31	broth
+32	buckeye candy
+33	buns
+34	buttered
+35	cake
+36	cake mixture
+37	carrot salad
+38	cheddar frittata
+39	cheeseburger
+40	cheesy patty
+41	chicken broccoli alfredo
+42	chicken quesadilla
+43	chipotle mix
+44	chipotle-avocado sandwich
+45	chipotle-bean mix
+46	chocolate
+47	chocolate cake
+48	chocolate chip cookie
+49	chocolate chips
+50	chocolate sandwich
+51	chopped
+52	clean
+53	closed
+54	clove
+55	cloves
+56	club sandwich
+57	cob
+58	coleslaw
+59	completely cooked
+60	completely sauced
+61	cooked
+62	cooked beans
+63	cooked beef
+64	cooked beef patty
+65	cooked black beans
+66	cooked chop
+67	cooked egg
+68	cooked eggs
+69	cooked noodles
+70	cooked pasta
+71	cooked potatoes
+72	cooked rice
+73	cooked shrimp
+74	cooked steak
+75	cooked tortilla
+76	cooked vegetables
+77	cookie
+78	cooking batter
+79	cooking spray
+80	cored
+81	covered
+82	cracked
+83	cream corn
+84	cube
+85	cubed
+86	cut
+87	cut club sandwich
+88	cut omelette
+89	cut sandwich
+90	cut tortilla
+91	cut with slits
+92	diced
+93	dirty
+94	dough
+95	dried
+96	dry
+97	empty
+98	enchilada
+99	enchilada sauce
+100	essence
+101	flattened
+102	flipped
+103	floured
+104	flowing water
+105	foil on top
+106	folded
+107	french toast
+108	fried
+109	fried bacon
+110	fried rice
+111	fries
+112	frosted chocolate cake
+113	frosting
+114	garlic
+115	garlic bread
+116	garlic parmesan chicken
+117	garlic paste
+118	garlic rice
+119	garlic salt
+120	garnished
+121	garnished rice
+122	granulated
+123	granules
+124	grated
+125	greased
+126	grill spatula
+127	grilled cheese sandwich
+128	grilled shrimp
+129	ground
+130	ground beef
+131	ground black pepper
+132	ground white pepper
+133	halved
+134	halved sandwich
+135	hamburger
+136	hamburger patty
+137	hardboiled
+138	hash browns
+139	heated
+140	heated in foil
+141	hot
+142	hot pepper
+143	in bag
+144	in baking tray
+145	in blender
+146	in boiler
+147	in bottle
+148	in bowl
+149	in can
+150	in carton
+151	in container
+152	in cup
+153	in foil
+154	in grinder
+155	in jar
+156	in measuring cup
+157	in meat
+158	in mixer
+159	in mixture
+160	in muffin pan
+161	in oven
+162	in package
+163	in pan
+164	in plastic bag
+165	in pot
+166	in sandwich
+167	in shaker
+168	in small bowl
+169	in spoon
+170	in spray bottle
+171	in strainer
+172	incomplete
+173	incomplete buckeye
+174	incomplete dough
+175	incomplete mac and cheese
+176	incomplete sandwich
+177	ingredients attached
+178	ingredients chilled inside
+179	ingredients cooked inside
+180	ingredients heated inside
+181	ingredients in foil
+182	ingredients inside
+183	ingredients inside  {yogurt}
+184	ingredients mashed inside
+185	ingredients melted on top
+186	ingredients mixed inside
+187	ingredients mixed on top
+188	ingredients on foil
+189	ingredients on top
+190	ingredients seasoned inside
+191	italian sausage
+192	jar inside
+193	kernels
+194	leaves
+195	lemon juice
+196	light corn syrup
+197	liquid
+198	loaf
+199	macaroni
+200	macaroni and cheese
+201	mashed
+202	mayonnaise
+203	melted
+204	minced
+205	miso soup
+206	mixed
+207	mixed greens
+208	mixed pasta
+209	mixture
+210	mixture on top
+211	muffins
+212	mushroom soup
+213	napkin on top
+214	no rinds
+215	no state
+216	none
+217	noodle strips
+218	off
+219	oiled
+220	omelette
+221	on
+222	on bread
+223	on dough
+224	on foil
+225	on grill
+226	on pan
+227	on plate
+228	on spoon
+229	on surface
+230	on tortilla
+231	on tray
+232	opened
+233	pan inside
+234	pan on top
+235	pancake
+236	parchment paper on top
+237	parsley
+238	partly cooked
+239	partly cooked pancake
+240	partly cooked patty
+241	partly seared
+242	partly uncooked
+243	passion tea
+244	paste
+245	patty
+246	peanut brittle
+247	peanut butter and jelly
+248	peanut butter mixture
+249	peeled
+250	pepper
+251	peppered
+252	pico de gallo
+253	pigs in a blanket
+254	pizza cutter
+255	plain pancake
+256	pork chop
+257	pot on top
+258	potato salad
+259	potato soup
+260	powder
+261	powdered
+262	pressed
+263	protein shake
+264	quartered sandwich
+265	quesadilla
+266	ramen
+267	raw
+268	roasted
+269	roasted brussel sprouts
+270	roasted vegetables
+271	rolled
+272	salad
+273	salt
+274	salted
+275	sandwich
+276	sauce
+277	sauce mixture
+278	sauced
+279	scrambled
+280	scrambled egg
+281	scrambled eggs
+282	sea salt
+283	seared
+284	seasoned
+285	seasoned beef
+286	seasoned green beans
+287	seasoned potatoes
+288	seasoned sausage
+289	seasoning on top
+290	shaved
+291	sheet
+292	shredded
+293	shrimp mango salad
+294	sliced
+295	smoked
+296	smoothie
+297	soaked
+298	softened
+299	soup
+300	sour cream
+301	spatula on top
+302	spicy black beans
+303	spread
+304	sprig
+305	squeezed
+306	sriracha
+307	stalks
+308	stick
+309	stripped
+310	stuffed
+311	sugar
+312	sweet potato fries
+313	taco seasoning
+314	teriyaki burger
+315	toasted
+316	toasted bread
+317	tomato soup
+318	topped with cheese
+319	turkey sandwich
+320	uncooked
+321	uncooked egg
+322	uncooked patty
+323	uncovered
+324	uncracked
+325	vegetable oil
+326	water
+327	watermelon
+328	watermelon-passion smoothie
+329	whipped cream
+330	white
+331	white sauce
+332	white vinegar
+333	whole
+334	with bowl
+335	with mixer
+336	without stems
+337	wrapped
